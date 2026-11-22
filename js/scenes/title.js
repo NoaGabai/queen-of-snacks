@@ -6,6 +6,9 @@
 
 const TitleScene = {
   enter() {
+    // במסך הפתיחה אין משחק פעיל (הוא כבר נשמר לפני שהגענו לכאן)
+    Save.slot = null; Save.state = null;
+
     // כוכבים קבועים (לא אקראיים בכל פריים)
     this.stars = [];
     let seed = 7;
@@ -15,9 +18,33 @@ const TitleScene = {
 
     const bx = 250, bw = 150, bh = 30;
     this.menu = new Menu([
-      { label: 'משחק חדש', x: bx, y: 132, w: bw, h: bh, onPress: () => Game.go(TestRoomScene) },
-      { label: 'משחק שמור', x: bx, y: 172, w: bw, h: bh, onPress: () => Game.say('עוד אין שמירות – זה שלב 2 💾') },
-    ]);
+      { label: 'משחק חדש', x: bx, y: 132, w: bw, h: bh, onPress: () => this.newGame() },
+      { label: 'משחק שמור', x: bx, y: 172, w: bw, h: bh, onPress: () => this.loadGame() },
+    ], { focus: Save.any() ? 1 : 0 });   // אם יש שמירה, הפוקוס מתחיל על "משחק שמור"
+  },
+
+  // "משחק חדש": בוחרים משבצת. משבצת מלאה נדרסת רק אחרי אישור.
+  newGame() {
+    SlotPicker({
+      title: 'משחק חדש – באיזו משבצת?',
+      isEnabled: () => true,
+      onPick: (i, d) => {
+        const start = () => { Save.startNew(i); Game.go(TestRoomScene); };
+        if (d) Confirm('בטוחה? המשחק הזה יימחק', start, { sub: `משבצת ${i + 1} · רמה ${d.level} · ${formatPlayTime(d.playTime)}`, yes: 'כן, למחוק' });
+        else start();
+      },
+    });
+  },
+
+  // "משחק שמור": רשימת המשבצות, ובוחרים מאיפה להמשיך
+  loadGame() {
+    if (!Save.any()) { Game.say('עוד אין משחקים שמורים – התחילי משחק חדש ✨'); return; }
+    SlotPicker({
+      title: 'מאיפה ממשיכים?',
+      isEnabled: (i, d) => !!d,
+      canDelete: true,
+      onPick: (i) => { if (Save.load(i)) Game.go(TestRoomScene); },
+    });
   },
 
   update(dt) {
@@ -69,5 +96,6 @@ const TitleScene = {
 
     // הקדשה
     text('למאי, מנועה 💛', 325, 222, { size: 11, color: PAL.paper });
+    if (!Save.ok) text('⚠️ הדפדפן הזה לא מאפשר לשמור', 325, 258, { size: 9, color: PAL.warm });
   },
 };

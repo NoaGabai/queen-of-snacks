@@ -5,9 +5,11 @@
 
 const TestRoomScene = {
   usesPad: true,
+  countsTime: true,   // זמן משחק נספר כאן
 
   enter() {
-    this.mai = { x: 120, y: 150, dir: 'down', walk: 0, moving: false };
+    const pl = (Save.state && Save.state.place) || { x: 120, y: 150 };
+    this.mai = { x: pl.x, y: pl.y, dir: 'down', walk: 0, moving: false };
     this.lizzy = { x: 340, y: 124 };   // ליזי בחצי גודל במפה (זמני)
     this.room = { x: 24, y: 40, w: 432, h: 196 };
   },
@@ -31,11 +33,30 @@ const TestRoomScene = {
       if (Math.hypot(nx - this.lizzy.x - 10, ny - this.lizzy.y - 25) > 12) { m.x = nx; m.y = ny; }
     }
 
+    if (Save.state) Save.state.place = { scene: 'testroom', x: Math.round(m.x), y: Math.round(m.y) };
+
     const nearLizzy = Math.hypot(m.x - this.lizzy.x - 10, m.y - this.lizzy.y - 25) < 30;
     this.nearLizzy = nearLizzy;
-    if (Input.was('a') && nearLizzy) { Sound.select(); Game.say('ליזי: "פה שומרים ומתמלאים" 🐱💗'); this.purr = 2; }
+    const tappedLizzy = Input.taps.some(p => Math.abs(p.x - this.lizzy.x - 10) < 16 && Math.abs(p.y - this.lizzy.y - 13) < 18);
+    if ((Input.was('a') || tappedLizzy) && nearLizzy) this.petLizzy();
     if (this.purr) this.purr = Math.max(0, this.purr - dt);
-    if (Input.was('b')) { Sound.back(); Game.go(TitleScene); }
+
+    if (phoneButtonPressed()) { Sound.select(); Phone.open(() => Game.go(TestRoomScene)); return; }
+    if (Input.was('b')) { Sound.back(); Save.saveNow(); Game.go(TitleScene); }
+  },
+
+  // ליזי = נקודת שמירה: ריפוי, מילוי רוגלך ושמירה אוטומטית
+  petLizzy() {
+    Sound.select(); this.purr = 2;
+    const st = Save.state;
+    if (st) {
+      st.hp = 20 + 4 * (st.level - 1);
+      st.rugelach = Math.max(st.rugelach, 3);
+      st.lastLizzy = 'testroom';
+      const first = !st.flags.lizzyTip; st.flags.lizzyTip = true;
+      Save.saveNow();
+      Game.say(first ? 'ליזי: "פה שומרים ומתמלאים" 🐱💗' : `ליזי שמרה את המשחק ✓ 💗`);
+    }
   },
 
   draw(t) {
@@ -65,8 +86,15 @@ const TestRoomScene = {
     });
 
     panel(W / 2 - 150, 6, 300, 26, 'rgba(58,38,24,0.85)');
-    text(Input.isTouch ? 'חדר בדיקה · ג׳ויסטיק משמאל · B = חזרה' : 'חדר בדיקה · חיצים / WASD · Esc = חזרה',
+    text(Input.isTouch ? 'חדר בדיקה · ג׳ויסטיק משמאל · B = למסך הפתיחה' : 'חדר בדיקה · חיצים / WASD · Esc = למסך הפתיחה',
       W / 2, 20, { size: 11, color: PAL.paper });
+
+    // שורת מידע זמנית: משבצת וזמן משחק
+    if (Save.state) {
+      panel(6, 6, 74, 26, 'rgba(58,38,24,0.85)');
+      text(`💾 ${Save.slot + 1} · ⏱ ${formatPlayTime(Save.state.playTime)}`, 43, 20, { size: 10, color: PAL.paper });
+    }
+    drawPhoneButton(t);
   },
 };
 

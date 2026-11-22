@@ -121,7 +121,7 @@ const Sound = {
 
 // ---------------------------------------------------------------------
 // קלט: מקלדת + מגע
-// פעולות: up/down/left/right, a (אישור), b (חזרה)
+// פעולות: up/down/left/right, a (אישור), b (חזרה), phone (פתיחת הטלפון)
 // ---------------------------------------------------------------------
 const Input = {
   held: {}, pressed: {}, taps: [],
@@ -140,6 +140,7 @@ const KEYMAP = {
   ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
   Enter: 'a', Space: 'a', KeyZ: 'a', Escape: 'b', Backspace: 'b', KeyX: 'b',
+  KeyP: 'phone', Tab: 'phone',
 };
 window.addEventListener('keydown', e => {
   Sound.unlock();
@@ -238,6 +239,7 @@ class Menu {
     this.items.forEach((it, i) => {
       const f = this.showFocus && i === this.focus;
       const bob = f ? Math.round(Math.sin(t * 6)) : 0;
+      if (it.render) { it.render(it, f, bob, t); return; }   // כפתור עם ציור מיוחד (למשל משבצת שמירה)
       panel(it.x, it.y + bob, it.w, it.h, it.disabled ? '#8a7f74' : (f ? PAL.warm : PAL.primary));
       text(it.label, it.x + it.w / 2, it.y + it.h / 2 + bob + 1, {
         size: it.size || 14, bold: true, color: PAL.outline,
@@ -252,10 +254,16 @@ class Menu {
 // ---------------------------------------------------------------------
 const Game = {
   scene: null, next: null, fade: 0, fadeDir: 0, time: 0, toast: null,
+  overlays: [],                       // חלונות מעל המסך (טלפון, אישור) – רק העליון מקבל קלט
+  push(o) { this.overlays.push(o); o.enter && o.enter(); },
+  pop() { const o = this.overlays.pop(); o && o.exit && o.exit(); },
+  top() { return this.overlays[this.overlays.length - 1] || this.scene; },
   go(scene) {                         // מעבר רך למסך אחר
     if (!this.scene) { this.scene = scene; scene.enter && scene.enter(); return; }
     this.next = scene; this.fadeDir = 1;
   },
+  // מעבר מיידי שסוגר גם את כל החלונות הפתוחים
+  goClean(scene) { while (this.overlays.length) this.pop(); this.go(scene); },
   say(msg, secs = 2.2) { this.toast = { msg, t: secs }; },
   update(dt) {
     this.time += dt;
@@ -263,23 +271,28 @@ const Game = {
       this.fade += this.fadeDir * dt * 4;
       if (this.fade >= 1 && this.fadeDir === 1) {
         this.fade = 1; this.scene.exit && this.scene.exit();
+        while (this.overlays.length) this.pop();
         this.scene = this.next; this.next = null; this.scene.enter && this.scene.enter();
         this.fadeDir = -1;
       } else if (this.fade <= 0 && this.fadeDir === -1) { this.fade = 0; this.fadeDir = 0; }
     } else if (this.scene) {
-      Input.pad.active = !!(this.scene.usesPad && Input.isTouch);
-      this.scene.update(dt);
+      const top = this.top();
+      Input.pad.active = !!(top.usesPad && Input.isTouch);
+      top.update(dt);
+      // זמן משחק נספר רק במסכי משחק (לא בתפריטים), כולל כשהטלפון פתוח
+      if (this.scene.countsTime && Save.state) Save.state.playTime += dt;
     }
     if (this.toast && (this.toast.t -= dt) <= 0) this.toast = null;
   },
   draw() {
     ctx.clearRect(0, 0, W, H);
     if (this.scene) this.scene.draw(this.time);
+    for (const o of this.overlays) o.draw(this.time);
     if (Input.pad.active) TouchPad.draw();
     if (this.toast) {
       const w = 260;
-      panel(W / 2 - w / 2, 40, w, 26, PAL.paper);
-      text(this.toast.msg, W / 2, 54, { size: 12, color: PAL.outline, bold: true });
+      panel(W / 2 - w / 2, H - 46, w, 26, PAL.paper);
+      text(this.toast.msg, W / 2, H - 32, { size: 12, color: PAL.outline, bold: true });
     }
     if (this.fade > 0) { ctx.fillStyle = `rgba(27,18,48,${this.fade})`; ctx.fillRect(0, 0, W, H); }
   },
@@ -294,3 +307,8 @@ function startLoop() {
   }
   requestAnimationFrame(frame);
 }
+
+// שמירה כשסוגרים / ממזערים את הדף בזמן משחק (כדי שלא יאבד התקדמות)
+function saveOnHide() { if (Game.scene && Game.scene.countsTime && Save.state) Save.saveNow(); }
+window.addEventListener('pagehide', saveOnHide);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveOnHide(); });
