@@ -25,12 +25,28 @@ ctx.imageSmoothingEnabled = false;
 const UIROOT = document.getElementById('ui');
 const Screen = { scale: 1 };
 
+// שטח שימושי = החלון פחות מרווחי הבטיחות של המכשיר (מגרעת, פס מערכת)
+const safeProbe = (() => {
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+    'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+  document.body.appendChild(d); return d;
+})();
+function safeArea() {
+  const c = getComputedStyle(safeProbe);
+  return { t: parseFloat(c.paddingTop) || 0, r: parseFloat(c.paddingRight) || 0, b: parseFloat(c.paddingBottom) || 0, l: parseFloat(c.paddingLeft) || 0 };
+}
 function fit() {
   const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  const s = Math.min(vw / 1440, vh / 810);
-  Screen.scale = s;
+  const a = safeArea(), uw = Math.max(1, vw - a.l - a.r), uh = Math.max(1, vh - a.t - a.b);
+  const s = Math.min(uw / 1440, uh / 810);
+  Screen.scale = s; Screen.u = s * K;                         // u = פיקסלי CSS ליחידת עולם
+  Screen.area = { x: a.l, y: a.t, w: uw, h: uh };
+  Screen.rect = { x: a.l + (uw - 1440 * s) / 2, y: a.t + (uh - 810 * s) / 2, w: 1440 * s, h: 810 * s };
+  stage.style.left = (a.l + uw / 2) + 'px'; stage.style.top = (a.t + uh / 2) + 'px';
   stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+  if (Screen.onFit) Screen.onFit();
 }
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 200));
@@ -119,8 +135,12 @@ const KEYMAP = {
   Enter: 'a', NumpadEnter: 'a', Space: 'a', KeyZ: 'a', Escape: 'b', Backspace: 'b', KeyX: 'b',
   KeyP: 'phone', Tab: 'phone',
 };
+// מסך עם nativeKeys (מסך הפתיחה) משאיר ל-Tab / Enter / Space את ההתנהגות הרגילה של כפתורי HTML
+const NATIVE_KEYS = ['Tab', 'Enter', 'NumpadEnter', 'Space'];
 window.addEventListener('keydown', e => {
   Sound.unlock();
+  const top = Game.top();
+  if (top && top.nativeKeys && NATIVE_KEYS.includes(e.code)) return;
   const a = KEYMAP[e.code]; if (!a) return;
   e.preventDefault(); Input.usedKeys = true;
   if (!e.repeat) Input.down(a);
@@ -206,11 +226,19 @@ const Game = {
   push(o) { this.overlays.push(o); o.enter && o.enter(); },
   pop() { const o = this.overlays.pop(); o && o.exit && o.exit(); },
   top() { return this.overlays[this.overlays.length - 1] || this.scene; },
-  go(scene) {                         // מעבר רך למסך אחר
+  // מעבר רך למסך אחר. opt: { ms, color } לדעיכה מותאמת, או { instant } (למשל כשמבקשים להפחית תנועה)
+  go(scene, opt = {}) {
     if (!this.scene) { this.scene = scene; scene.enter && scene.enter(); return; }
+    if (opt.instant) {
+      this.scene.exit && this.scene.exit();
+      while (this.overlays.length) this.pop();
+      this.scene = scene; this.next = null; this.fade = 0; this.fadeDir = 0; scene.enter && scene.enter(); return;
+    }
     this.next = scene; this.fadeDir = 1;
+    this.fadeSpeed = opt.ms ? 1000 / opt.ms : 4;
+    fadeEl.style.background = opt.color || '';
   },
-  goClean(scene) { while (this.overlays.length) this.pop(); this.go(scene); },
+  goClean(scene, opt) { while (this.overlays.length) this.pop(); this.go(scene, opt); },
   // הודעה קופצת בתחתית. אפשר להעביר HTML (למשל אייקון)
   say(html, secs = 2.4) {
     this.toast = { t: secs };
@@ -219,13 +247,13 @@ const Game = {
   update(dt) {
     this.time += dt;
     if (this.fadeDir) {
-      this.fade += this.fadeDir * dt * 4;
+      this.fade += this.fadeDir * dt * (this.fadeSpeed || 4);
       if (this.fade >= 1 && this.fadeDir === 1) {
         this.fade = 1; this.scene.exit && this.scene.exit();
         while (this.overlays.length) this.pop();
         this.scene = this.next; this.next = null; this.scene.enter && this.scene.enter();
         this.fadeDir = -1;
-      } else if (this.fade <= 0 && this.fadeDir === -1) { this.fade = 0; this.fadeDir = 0; }
+      } else if (this.fade <= 0 && this.fadeDir === -1) { this.fade = 0; this.fadeDir = 0; this.fadeSpeed = 4; fadeEl.style.background = ''; }
     } else if (this.scene) {
       const top = this.top();
       Input.pad.active = !!(top.usesPad && Input.isTouch);

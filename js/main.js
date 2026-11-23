@@ -27,6 +27,7 @@ const loadPhotos = () => Assets.load(['kitchen/photos_real'], true).then(([has])
 Promise.all([
   loadFonts(), loadPhotos(),
   Assets.load([
+    ...TITLE_IMAGES,
     'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
     'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
     ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(), ...BATTLE_IMAGES(),
