@@ -2,7 +2,7 @@
 // שלב 5: עולם 1 – גינת הבצל הירוק. מפה של 2×2 מסכים (art-bible 5.3, "מפות v1").
 //   s3 פינת הפטרוזיליה (רוני)   | s4 שער הבצלים (ליזי 2 + הבוס)
 //   s1 הכניסה (ליזי 1, 2 שקיות) | s2 מטע השרי (הפאוץ' בכיס הסודי)
-// ירקות שהובסו לא חוזרים. הקרב עצמו נבנה בשלב 6 – עד אז חלון זמני "לנצח / לברוח".
+// ירקות שהובסו לא חוזרים. נגיעה בירק / בשער = מסך הקרב (battle.js).
 // =====================================================================
 
 const W1_NAMES = { s1: 'הכניסה', s2: 'מטע השרי', s3: 'פינת הפטרוזיליה', s4: 'שער הבצלים' };
@@ -40,7 +40,8 @@ const World1Scene = {
     this.L = Layer(walkLayerHTML('<div class="panel secrets"></div><div class="panel where"></div>'), { screen: true }).mount();
     wirePhoneButton(this.L);
     this.clouds = [{ x: -120, y: 40, s: 1, v: 6 }, { x: 180, y: 150, s: 1.3, v: 5 }, { x: 420, y: 10, s: .9, v: 7 }];
-    this.fade = 0; this.fadeTo = null; this.lock = 0; this.heardAt = 0;
+    this.fade = 0; this.fadeTo = null; this.lock = World1Scene.returnLock ? performance.now() + 2500 : 0; this.heardAt = 0;
+    World1Scene.returnLock = false; this.inBattle = false;
     // איפה מתחילים: המקום השמור, או ליזי האחרונה, או הכניסה
     if (pl.scene === 'world1' && ART.world1[pl.screen]) this.go(pl.screen, [pl.x, pl.y]);
     else if (st.lastLizzy && st.lastLizzy.world === 1) { const s = st.lastLizzy.screen, lz = ART.world1[s].lizzy; this.go(s, [lz.x, lz.foot + 16]); }
@@ -144,36 +145,53 @@ const World1Scene = {
       [{ k: 'ok', title: 'נתראה במרפסת' }]);
   },
 
+  // שער הבצלים: קרב הבוס (פעם אחת)
   gate() {
-    Dialog(`<h2>שער הבצלים</h2><p>הבצל הירוק הגדול מחכה בכיכר שמאחורי השער. מבוס אי אפשר לברוח, אז כדאי לעבור קודם אצל ליזי.</p>
-        <p class="dimtxt">קרב הבוס ייבנה בשלב 6.</p>`,
-      [{ k: 'ok', title: 'מה יש בזה?', onPress: () => { Game.pop(); this.sayMai('מה יש בזה?', 1600); } }, { k: 'no', title: 'עוד לא' }]);
+    const st = Save.state;
+    if (st.flags.w1Boss) {
+      Dialog(`<h2>שער הבצלים</h2><p>השער פתוח והכיכר ריקה. הבצל הירוק הגדול כבר בכה את כל הדמעות שלו.</p>`, [{ k: 'ok', title: 'מה יש בזה?' }]);
+      return;
+    }
+    Dialog(`<h2>שער הבצלים</h2><p>הבצל הירוק הגדול מחכה בכיכר שמאחורי השער. מבוס אי אפשר לברוח, אז כדאי לעבור קודם אצל ליזי.</p>`,
+      [{ k: 'ok', title: 'מה יש בזה?', onPress: () => { Game.pop(); this.boss(); } }, { k: 'no', title: 'עוד לא' }], { focus: 'no' });
+  },
+  boss() {
+    const st = Save.state; this.w.stop(); this.savePlace(); Save.saveNow();
+    BattleScene.start('onion', {
+      onWin: () => {
+        if (!st.legendary.includes(0)) st.legendary.push(0);
+        st.flags.w1Boss = true; st.unlockedWorlds = Math.max(st.unlockedWorlds, 2);
+        st.place = { scene: 'travel' }; Save.saveNow();
+        Game.go(KitchenScene);                                   // אחרי הבוס: חזרה אוטומטית למטבח, והנישנוש עולה למדף
+        setTimeout(() => Game.say('הפופקורן עלה למדף · עולם 2 נפתח במפת הנישנושים', 3.2), 700);
+      },
+      onLose: () => this.lose(),
+    });
   },
 
-  // קרב זמני (שלב 6 יחליף אותו במסך הקרב האמיתי)
+  // קרב (שלב 6): עוברים למסך הקרב, ובסוף חוזרים לכאן
   battle(v) {
     if (this.inBattle) return;
-    this.inBattle = true; this.w.stop(); this.w.mai.dir = v.x < this.w.mai.x ? 'left' : 'right';
-    const st = Save.state;
-    const done = () => { this.inBattle = false; };
-    Dialog(`<div class="top"><div class="pv soil"><div class="pvimg" style="background-image:url(assets/world1/veg_${v.kind}_map.png);background-size:${v.kind === 'carrot' ? '56px 96px' : '64px 64px'};width:${v.kind === 'carrot' ? 56 : 64}px;height:${v.kind === 'carrot' ? 96 : 64}px"></div></div>
-        <div><h2>${VEG_NAMES[v.kind]} חוסמת את הדרך!</h2><p>כאן ייפתח מסך הקרב (שלב 6). בינתיים אפשר לדלג ישר לניצחון.</p></div></div>`,
-      [{ k: 'win', title: 'לנצח', onPress: () => {
-          Game.pop(); done();
-          v.alive = false; v.poof = 600; st.defeated[v.key] = true;
-          const xp = Math.round(10 * (st.decor.includes('photos') ? 1.1 : 1));
-          const cigs = 3 + (st.decor.includes('fridge') ? 1 : 0);
-          const up = gainXp(xp); gainCigs(cigs, t => setTimeout(() => this.sayMai(t, 1600), 1700));
-          this.w.sparkle([v.x - 8, v.foot - 20, v.x + 8, v.foot], ['#FFE066', '#E8402E', '#FFFFFF']);
-          this.sayMai('מה יש בזה?', 1600);
-          Game.say(`<bdi dir="ltr">+${xp}</bdi> ניסיון · <bdi dir="ltr">+${cigs}</bdi> ${icon('cig')}` + (up ? ` · רמה <bdi>${up.level}</bdi>!` : ''), 3);
-          this.savePlace(); Save.saveNow();          // שמירה אוטומטית אחרי כל ניצחון
-        } },
-       { k: 'no', title: 'לברוח', onPress: () => {
-          Game.pop(); done(); this.lock = performance.now() + 2500;
-          const a = Math.atan2(this.w.mai.y - v.foot, this.w.mai.x - v.x); this.w.step(Math.cos(a) * 14, Math.sin(a) * 14);
-        } }],
-      { focus: 'win', onBack: () => { Game.pop(); done(); this.lock = performance.now() + 2500; } });
+    this.inBattle = true; this.w.stop();
+    const st = Save.state, m = this.w.mai;
+    this.savePlace(); Save.saveNow();
+    const a = Math.atan2(m.y - v.foot, m.x - v.x);
+    let fx = m.x, fy = m.y; for (let i = 0; i < 14; i++) { if (this.walkable(fx + Math.cos(a), fy + Math.sin(a))) { fx += Math.cos(a); fy += Math.sin(a); } }
+    const back = (place, lock) => { this.inBattle = false; st.place = place; World1Scene.returnLock = lock; Save.saveNow(); Game.go(World1Scene); };
+    BattleScene.start(v.kind, {
+      onWin: () => { st.defeated[v.key] = true; back({ scene: 'world1', screen: this.cur, x: Math.round(m.x), y: Math.round(m.y) }, false); },
+      onFlee: () => back({ scene: 'world1', screen: this.cur, x: Math.round(fx), y: Math.round(fy) }, true),
+      onLose: () => this.lose(),
+    });
+  },
+
+  // הפסד: חוזרים לליזי האחרונה עם חיים מלאים וכל הניסיון (או לכניסה, אם עוד לא היינו אצל ליזי)
+  lose() {
+    const st = Save.state; this.inBattle = false; Stats.refill(st);
+    const lz = st.lastLizzy && st.lastLizzy.world === 1 ? st.lastLizzy.screen : null;
+    st.place = lz ? { scene: 'world1', screen: lz, x: ART.world1[lz].lizzy.x, y: ART.world1[lz].lizzy.foot + 16 } : { scene: 'world1', screen: 's1', x: 60, y: 250 };
+    World1Scene.returnLock = true; Save.saveNow(); Game.go(World1Scene);
+    setTimeout(() => Game.say('ליזי שמרה עלייך. החיים והרוגלך התמלאו.'), 600);
   },
 
   savePlace() { const m = this.w.mai; Save.state.place = { scene: 'world1', screen: this.cur, x: Math.round(m.x), y: Math.round(m.y) }; },

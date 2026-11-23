@@ -206,3 +206,45 @@ bdi { unicode-bidi: isolate; }
 .lightbox .count { font-size: var(--t-value); font-weight: 700; color: var(--muted); min-width: 60px; text-align: center; }
 /* הטלפון: שורת כפתורים בתחתית */
 .phone .foot .row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; flex: 1; }
+
+/* =====================================================================
+   מסך הקרב – שלב 6, לפי battle_screen.html / art-ui.md
+   ===================================================================== */
+.battle .stat { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 10px; }
+.battle .stat .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.battle .name { font-size: var(--t-name); font-weight: 700; line-height: 1.1; }
+.battle .sub { font-size: var(--t-tag); color: var(--muted); font-weight: 400; }
+.battle .meter { display: grid; grid-template-columns: 118px 1fr 64px; align-items: center; column-gap: 12px; }
+.battle .meter .lbl { font-size: var(--t-tag); color: var(--muted); }
+.battle .meter .val { display: block; font-size: var(--t-value); font-weight: 700; text-align: left; line-height: 1.25; }
+.battle .bar { height: 12px; background: #0A0E19; border: var(--b) solid #0A0E19; border-radius: 3px; overflow: hidden; position: relative; }
+.battle .bar > i { position: absolute; top: 0; bottom: 0; right: 0; width: 100%; background: var(--hp); transition: width .4s steps(10); }
+.battle .bar.mid > i { background: var(--hp-mid); } .battle .bar.low > i { background: var(--red); }
+.battle .bar.snack > i { background: var(--snack); }
+.battle .pips { display: flex; gap: 6px; }
+.battle .mhud.low { border-color: var(--red); } .battle .mhud.low.blink { border-color: var(--gold); }
+.battle .intent { position: absolute; display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; background: var(--cream); color: #2A1A10;
+  border: var(--b) solid #3A2618; border-radius: var(--r); font-size: var(--t-value); font-weight: 700; box-shadow: var(--shadow); }
+.battle .intent.danger { background: #FFE2DC; border-color: var(--red); color: #8A1410; }
+.battle .intent:after { content: ''; position: absolute; bottom: -12px; right: 22px; border: 6px solid transparent; border-top-color: #3A2618; }
+.battle .intent.danger:after { border-top-color: var(--red); }
+.battle .menu { left: 12px; right: 12px; top: 598px; bottom: 12px; padding: var(--pad); display: flex; gap: 16px; }
+.battle .moves { display: grid; grid-template-columns: repeat(2, 402px); grid-template-rows: repeat(2, 1fr); gap: 12px; flex: none; }
+.battle .items { display: grid; grid-template-rows: repeat(2, 1fr); gap: 12px; width: 208px; flex: none; }
+.battle .moves .act, .battle .items .act { min-height: 0; }
+.battle .msg { flex: 1; min-width: 0; background: var(--surface-lo); border: var(--b) solid var(--line); border-radius: var(--r-in); padding: 16px 20px;
+  font-size: var(--t-msg); font-weight: 400; line-height: 1.45; color: var(--cream); display: flex; align-items: center; }
+.battle .act .cost { display: flex; gap: 3px; min-height: 24px; align-items: center; }
+.battle .act .free { font-size: var(--t-tag); color: var(--dim); }
+.battle .act.empty .t { color: var(--dim); font-weight: 400; }
+.battle .rogaPop { position: absolute; width: 280px; bottom: 208px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.battle .rogaPop .act { min-height: 68px; }
+.battle .special { position: absolute; left: 24px; bottom: 216px; width: 340px; min-height: 76px; border-color: var(--gold); }
+.battle .special .tile { border-color: var(--gold); background: #2E2A18; }
+.battle .result { left: 50%; top: 200px; width: 480px; transform: translateX(-50%); padding: 24px 28px; display: flex; flex-direction: column; align-items: stretch; gap: 14px; text-align: center; }
+.battle .result h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--gold); }
+.battle .result p { margin: 0; font-size: var(--t-msg); color: var(--cream); }
+.battle .rewards { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px 24px; font-size: var(--t-value); font-weight: 700; }
+.battle .rewards span { display: flex; align-items: center; gap: 8px; }
+.battle .rewards .legend { color: var(--gold); }
+.battle .say.bt { z-index: 2; }

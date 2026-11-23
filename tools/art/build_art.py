@@ -15,7 +15,8 @@ ART = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(ROOT, 'assets')
 env = dict(os.environ, PYTHONPATH=ART + os.pathsep + os.environ.get('PYTHONPATH', ''))
 
-for script in ('kitchen.py', 'mai_walk.py', 'friends_map.py', 'world1.py', 'world1_screens.py'):
+for script in ('kitchen.py', 'mai_walk.py', 'friends_map.py', 'world1.py', 'world1_screens.py',
+               'chars.py', 'veggies.py', 'boss_onion.py'):
     r = subprocess.run([sys.executable, os.path.join(ART, script)], cwd=ASSETS, env=env, capture_output=True, text=True)
     sys.stdout.write(r.stdout); sys.stderr.write(r.stderr)
     if r.returncode: sys.exit(f'נכשל: {script}')

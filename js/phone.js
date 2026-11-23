@@ -53,7 +53,7 @@ const Phone = {
       // "מפת הנישנושים": העולמות נפתחים לפי הסדר; עולם נעול אפור
       const st = Save.state;
       L.set(this.frame('מפת הנישנושים', 'לאן נוסעים?', WORLD_NAMES.slice(1).map((n, i) => act({
-        k: 'w' + (i + 1), ic: 'map', title: n, desc: i + 1 <= st.unlockedWorlds ? `עולם <bdi>${i + 1}</bdi>` : 'נעול',
+        k: 'w' + (i + 1), ic: 'map', title: n, desc: i + 1 > st.unlockedWorlds ? 'נעול' : WORLD_SCENES[i + 1] ? `עולם <bdi>${i + 1}</bdi>` : 'נפתח! (בבנייה)',
         disabled: i + 1 > st.unlockedWorlds || !WORLD_SCENES[i + 1],
       })).join(''), act({ k: 'back', title: 'חזרה' })), focus);
       for (let n = 1; n <= 5; n++) L.on('w' + n, () => this.travel(n));

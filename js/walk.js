@@ -183,7 +183,7 @@ function gainXp(n) {
   st.xp += n; st.level = Stats.levelFor(st.xp);
   if (st.level > before) {
     const newMoves = MOVE_UNLOCKS.filter(u => u.level > before && u.level <= st.level).map(u => u.move);
-    for (const mv of newMoves) if (!st.movesUnlocked.includes(mv)) st.movesUnlocked.push(mv);
+    for (const mv of newMoves) { if (!st.movesUnlocked.includes(mv)) st.movesUnlocked.push(mv); if (st.moves.length < 4 && !st.moves.includes(mv)) st.moves.push(mv); }
     st.hp = Stats.maxHp(st);
     return { level: st.level, moves: newMoves };
   }

@@ -24,7 +24,7 @@ Promise.all([
   Assets.load([
     'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
     'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
-    ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(),
+    ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(), ...BATTLE_IMAGES(),
   ]),
 ]).then(() => {
   document.getElementById('loading').remove();
