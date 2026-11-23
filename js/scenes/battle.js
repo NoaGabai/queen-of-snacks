@@ -27,9 +27,9 @@ const LEGENDARY = [
 ];
 // האויבים של עולם 1 ("אויבים v1")
 const ENEMIES = {
-  tomato: { he: 'עגבניית שרי', hp: 14, weak: 'salty', spr: 'world1/veg_tomato', bg: 'world1/bg_garden', xp: 10, cigs: 3,
+  tomato: { he: 'עגבניית שרי', g: 'f', hp: 14, weak: 'salty', spr: 'world1/veg_tomato', bg: 'world1/bg_garden', xp: 10, cigs: 3,
             pattern: [{ t: 'atk', v: 3 }, { t: 'atk', v: 3 }, { t: 'charge' }, { t: 'atk', v: 6 }] },
-  carrot: { he: 'גזר', hp: 18, weak: 'salty', spr: 'world1/veg_carrot', bg: 'world1/bg_garden', xp: 10, cigs: 3,
+  carrot: { he: 'גזר', g: 'm', hp: 18, weak: 'salty', spr: 'world1/veg_carrot', bg: 'world1/bg_garden', xp: 10, cigs: 3,
             pattern: [{ t: 'def' }, { t: 'atk', v: 4 }, { t: 'atk', v: 4 }] },
   onion:  { he: 'הבצל הירוק הגדול', hp: 80, weak: 'salty', mult: 2, boss: true, spr: 'world1/boss_onion_1', spr2: 'world1/boss_onion_2', bg: 'world1/bg_plaza',
             xp: 40, cigs: 15, legendary: 0, phase2: 'דמעות', phase2Line: 'דמעות!', world: 'גינת הבצל הירוק',
@@ -86,8 +86,46 @@ const BattleScene = {
     if (en.boss) { this.msg(`${en.he} מחכה בכיכר. מבוס לא בורחים!`); setTimeout(() => this.say('מה יש בזה?', 'mai', 1800), 450); }
     else this.msg(`${en.he} חוסמת את הדרך!`);
     this.render();
+    if (!en.boss) this.tutStart();
   },
   exit() { this.L.unmount(); },
+
+  // ---------------- הדרכה (פתיחה וסוף v1 / ג): 3 בועות בקרב הראשון, כל אחת פעם אחת ----------------
+  tutStart() {
+    const f = Save.state.flags, E = this.S.en, he = E.g === 'm';
+    if (f.tut1) return;
+    setTimeout(() => {
+      if (Game.scene !== this || this.S.over) return;
+      f.tut1 = true; this.tip(he ? 'תראי מה הוא מתכנן' : 'תראי מה היא מתכננת', this.L.q('.intent'), 'above');
+      setTimeout(() => {
+        if (Game.scene !== this || this.S.busy || this.S.over || f.tut2) return;
+        const i = Save.state.moves.findIndex(m => m && MOVES[m].pow && MOVES[m].flav === E.weak);
+        if (i < 0) return;
+        f.tut2 = true;
+        const fl = FLAV[E.weak].he, mv = MOVE_NAMES[Save.state.moves[i]];
+        this.tip(`${mv} ${fl}, ו${he ? 'הוא לא סובל' : 'היא לא סובלת'} מ${fl}`, this.L.q(`[data-k="mv${i}"]`), 'above', true);
+      }, 2400);
+    }, 1300);
+  },
+  // הבועה השלישית: בפעם הראשונה שאויב "מתכונן" (💢)
+  tutCharge() {
+    const f = Save.state.flags, S = this.S;
+    if (f.tut3 || S.busy || S.over || this.intentOf().t !== 'charge') return;
+    const i = Save.state.moves.indexOf('cuddle'); if (i < 0) return;
+    f.tut3 = true;
+    this.tip(`${S.en.g === 'm' ? 'הוא מתכונן' : 'היא מתכוננת'} למכה חזקה, תתכרבלי!`, this.L.q(`[data-k="mv${i}"]`), 'above', true);
+  },
+  // בועת הדרכה ליד אלמנט בממשק. נשארת עד הפעולה הבאה של מאי
+  tip(text, anchor, where = 'above', keep) {
+    if (!anchor) return;
+    if (!keep) this.clearTips();
+    const r = anchor.getBoundingClientRect(), s = stage.getBoundingClientRect(), sc = s.width / 1440;
+    const x = (r.left + r.width / 2 - s.left) / sc, y = where === 'below' ? (r.bottom - s.top) / sc + 70 : (r.top - s.top) / sc - 8;
+    const b = document.createElement('div'); b.className = 'say tut' + (where === 'below' ? ' up' : ''); b.textContent = text;
+    b.style.left = Math.min(1330, Math.max(110, x)) + 'px'; b.style.top = y + 'px';
+    this.L.q('.battle').appendChild(b);
+  },
+  clearTips() { this.L.el.querySelectorAll('.say.tut').forEach(e => e.remove()); },
 
   // ---------------- HTML ----------------
   build() {
@@ -206,7 +244,7 @@ const BattleScene = {
   async playerMove(id) {
     const S = this.S, M = S.mai, m = MOVES[id];
     if (S.busy || S.over || M.crunch < m.cost) return;
-    S.busy = true; S.pop = false; M.crunch -= m.cost; this.render();
+    S.busy = true; S.pop = false; M.crunch -= m.cost; this.clearTips(); this.render();
     if (m.guard) { M.guard = true; M.spr = 'mai3_cuddle'; this.msg('מאי נעלמת לתוך הסווטשירט.'); this.burst(BMAI.x, BMAI.foot - 50, '#C9CBCE', 320); await wait(650); }
     else if (m.boost) { M.boost = true; M.spr = 'mai3_glasses'; this.say('רק שאני לא אאבד אותם', 'mai', 1500); this.burst(BMAI.x, BMAI.foot - 80, '#9C8CC4', 320); this.msg('המשקפיים ירדו לעיניים. המהלך הבא חזק פי <bdi>1.5</bdi>.'); await wait(950); }
     else {
@@ -268,7 +306,7 @@ const BattleScene = {
     M.crunch = Math.min(5, M.crunch + 1); S.arrow = null; this.render();
     if (await this.checkEnd()) return;
     if (E.boss && !S.iritUsed && M.hp / M.max < .3) await this.iritHelps();
-    S.busy = false; this.msg('מה מאי עושה?'); this.render();
+    S.busy = false; this.msg('מה מאי עושה?'); this.render(); this.tutCharge();
   },
 
   // אמא מצילה – פעם אחת בקרב בוס, מתחת ל-30% חיים
@@ -280,7 +318,7 @@ const BattleScene = {
     for (let x = 34; x >= -50; x -= 8) { S.fx.irit.x = x; await wait(16); } S.fx.irit = null;
   },
 
-  togglePop() { const S = this.S; if (S.busy || S.over) return; S.pop = !S.pop; this.render(); },
+  togglePop() { const S = this.S; if (S.busy || S.over) return; this.clearTips(); S.pop = !S.pop; this.render(); },
   async eat() {
     const S = this.S, M = S.mai; if (S.busy || M.roga <= 0) return;
     S.busy = true; S.pop = false; M.roga--; const h = Math.min(Save.state.oven.includes('choc') ? 15 : 10, M.max - M.hp); M.hp += h;
@@ -301,7 +339,7 @@ const BattleScene = {
   },
   async flee() {
     const S = this.S; if (S.busy || S.over || S.en.boss) return;
-    S.busy = true; S.over = true; S.pop = false; this.render(); this.msg('מאי בורחת.');
+    S.busy = true; S.over = true; S.pop = false; this.clearTips(); this.render(); this.msg('מאי בורחת.');
     for (let i = 0; i < 8; i++) { S.fx.mOff -= 6; await wait(30); }
     this.finish('flee');
   },

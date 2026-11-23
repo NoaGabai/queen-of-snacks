@@ -248,3 +248,7 @@ bdi { unicode-bidi: isolate; }
 .battle .rewards span { display: flex; align-items: center; gap: 8px; }
 .battle .rewards .legend { color: var(--gold); }
 .battle .say.bt { z-index: 2; }
+/* בועות הדרכה בקרב הראשון: כמו בועת דיבור, עם מסגרת זהב */
+.battle .say.tut { z-index: 3; border-color: var(--gold); background: #FFF6DE; box-shadow: 0 0 0 3px rgba(226, 193, 120, .35), var(--shadow); }
+.battle .say.tut:after { border-top-color: var(--gold); }
+.battle .say.tut.up:after { bottom: auto; top: -12px; border-top-color: transparent; border-bottom-color: var(--gold); }
