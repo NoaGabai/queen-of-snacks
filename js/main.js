@@ -14,11 +14,17 @@ function loadFonts() {
   return Promise.race([want, new Promise(r => setTimeout(r, 2000))]);
 }
 
+// המסכים שאפשר להיות בהם כשהמשחק נשמר
+const SCENES = { kitchen: KitchenScene, world1: World1Scene };
+const WORLD_SCENES = { 1: World1Scene };     // עולמות 2–5 יתווספו בהמשך
+function sceneFor(st) { return SCENES[st.place && st.place.scene] || KitchenScene; }
+
 Promise.all([
   loadFonts(),
   Assets.load([
     'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
     'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
+    ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(),
   ]),
 ]).then(() => {
   document.getElementById('loading').remove();

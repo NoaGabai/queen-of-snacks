@@ -1,7 +1,7 @@
 // =====================================================================
 // הטלפון של מאי – לפי "מפות v1 / א" ו"שמירות v1", בסגנון art-ui.md.
 // 3 אפליקציות: מפת הנישנושים, נישנוש אקספרס, שמירות.
-// בשלב הזה רק "שמירות" עובדת; השתיים האחרות יחוברו עם המטבח (שלב 4) והמפה (שלב 5).
+// כל 3 האפליקציות עובדות מאז שלב 5.
 // =====================================================================
 
 // כפתור הטלפון הקבוע בפינה הימנית-עליונה. מוסיפים אותו ל-HTML של מסך משחק.
@@ -12,7 +12,8 @@ function phoneButtonPressed() { return Input.was('phone'); }
 
 const Phone = {
   open(onSwitched) {
-    this.onSwitched = onSwitched;   // מה לעשות אחרי שעברו למשחק שמור אחר
+    // אחרי מעבר למשחק שמור אחר: הולכים למקום שבו הוא נשמר
+    this.onSwitched = onSwitched || (() => Game.goClean(sceneFor(Save.state)));
     this.app = 'home';
     this.L = Layer('', { onBack: () => this.back(), onUpdate: () => this.tick() });
     const enter = this.L.enter;
@@ -42,11 +43,21 @@ const Phone = {
         act({ k: 'map', ic: 'map', title: 'מפת הנישנושים', desc: 'בחירת עולם' }),
         act({ k: 'express', ic: 'scooter', title: 'נישנוש אקספרס', desc: 'חזרה למטבח' }),
         act({ k: 'saves', ic: 'disk', title: 'שמירות', desc: 'לשמור ולפתוח משחקים' }),
-      ].join(''), act({ k: 'close', title: 'לסגור' })), focus);
-      L.on('map', () => Game.say('מפת הנישנושים תיפתח כשיהיה עולם 1 (שלב 5)'));
-      L.on('express', () => Game.say('המטבח של אמא בבנייה (שלב 4)'));
+      ].join(''), `<div class="row">${act({ k: 'title', title: 'למסך הפתיחה' })}${act({ k: 'close', title: 'לסגור' })}</div>`), focus);
+      L.on('title', () => { Save.saveNow(); Game.goClean(TitleScene); });
+      L.on('map', () => { this.app = 'map'; this.render(); });
+      L.on('express', () => this.express());
       L.on('saves', () => { this.app = 'saves'; this.render(); });
       L.on('close', () => this.close());
+    } else if (this.app === 'map') {
+      // "מפת הנישנושים": העולמות נפתחים לפי הסדר; עולם נעול אפור
+      const st = Save.state;
+      L.set(this.frame('מפת הנישנושים', 'לאן נוסעים?', WORLD_NAMES.slice(1).map((n, i) => act({
+        k: 'w' + (i + 1), ic: 'map', title: n, desc: i + 1 <= st.unlockedWorlds ? `עולם <bdi>${i + 1}</bdi>` : 'נעול',
+        disabled: i + 1 > st.unlockedWorlds || !WORLD_SCENES[i + 1],
+      })).join(''), act({ k: 'back', title: 'חזרה' })), focus);
+      for (let n = 1; n <= 5; n++) L.on('w' + n, () => this.travel(n));
+      L.on('back', () => this.back());
     } else {
       const note = Save.slot !== null ? `משחקת עכשיו במשבצת <bdi>${Save.slot + 1}</bdi>` : '';
       L.set(this.frame('שמירות', note, [
@@ -61,8 +72,22 @@ const Phone = {
     }
   },
 
+  // נוסעים לעולם: מופיעים אצל ליזי האחרונה שביקרנו בה בעולם הזה (או בכניסה)
+  travel(n) {
+    if (Game.scene.id === 'world' + n) { Game.say('את כבר כאן'); return; }
+    Save.state.place = { scene: 'travel' };
+    Save.saveNow(); Game.goClean(WORLD_SCENES[n]);
+  },
+  // "נישנוש אקספרס": חזרה מיידית למטבח מכל מקום
+  express() {
+    if (Game.scene.id === 'kitchen') { Game.say('את כבר במטבח'); return; }
+    Save.state.place = { scene: 'travel' };
+    Save.saveNow(); Game.goClean(KitchenScene);
+    Game.say(`${icon('scooter')}נישנוש אקספרס בדרך למטבח`);
+  },
+
   back() {
-    if (this.app !== 'home') { this.app = 'home'; this.render('saves'); } else this.close();
+    if (this.app !== 'home') { const from = this.app; this.app = 'home'; this.render(from); } else this.close();
   },
   close() { Game.pop(); },
 

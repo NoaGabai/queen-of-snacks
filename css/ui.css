@@ -154,7 +154,7 @@ bdi { unicode-bidi: isolate; }
 .slotRow .act.sq { height: 96px; }
 
 /* ---------- הטלפון של מאי ---------- */
-.phone { width: 520px; height: 750px; border-radius: 40px; padding: 18px; background: #0F1424; display: flex; }
+.phone { width: 560px; height: 770px; border-radius: 40px; padding: 18px; background: #0F1424; display: flex; }
 .phone .screen { flex: 1; border-radius: 26px; background: var(--surface-lo); border: 2px solid var(--line);
   padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
 .phone .status { display: flex; justify-content: space-between; align-items: center; font-size: var(--t-tag); font-weight: 700; color: var(--muted); height: 26px; }
@@ -167,3 +167,42 @@ bdi { unicode-bidi: isolate; }
 .phone .apps { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
 .phone .foot { margin-top: auto; display: flex; }
 .phone .foot .act { flex: 1; }
+
+/* =====================================================================
+   מסכי הליכה (מטבח + מפות) – שלבים 4–5, לפי kitchen_screen / world1_screen
+   ===================================================================== */
+.hud { gap: 20px; }
+.secrets { left: 24px; top: 100px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; font-size: var(--t-tag); font-weight: 700; }
+.secrets span { display: flex; align-items: center; gap: 6px; }
+.secrets .sep { width: 1px; height: 16px; background: var(--line); }
+.where { right: 116px; top: 24px; padding: 12px 18px; font-size: var(--t-desc); font-weight: 700; white-space: nowrap; }
+.where .sub { font-weight: 400; color: var(--muted); }
+/* תווית מעל חפץ (ריחוף עכבר) */
+.wlabel { position: absolute; padding: 6px 12px; font-size: var(--t-desc); font-weight: 700; background: var(--panel); border: var(--b) solid var(--gold);
+  border-radius: var(--r); box-shadow: var(--shadow); white-space: nowrap; transform: translate(-50%, -100%); pointer-events: none; display: flex; align-items: center; gap: 8px; }
+.wlabel .sub { font-weight: 400; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+/* בועות: צעקה של אמא, וקול מרחוק */
+.say.shout { background: #FFE2DC; border-color: var(--red); color: #8A1410; }
+.say.shout:after { border-top-color: var(--red); }
+.say.far { background: rgba(242, 232, 213, .86); border-style: dashed; color: #4A3A2A; font-weight: 400; }
+/* דיאלוגים של חפצים */
+.dialog .top { display: flex; gap: 20px; align-items: center; }
+.dialog .pv { width: 150px; height: 110px; flex: none; border-radius: var(--r-in); background: #F2E2C2; border: var(--b) solid var(--line);
+  display: grid; place-items: center; overflow: hidden; position: relative; }
+.dialog .pv.dark { background: #2B2240; } .dialog .pv.cream { background: #F7EFE2; } .dialog .pv.soil { background: #B58A62; }
+.pvimg { width: 100%; height: 100%; image-rendering: pixelated; background-repeat: no-repeat; }
+.dialog h2 + p, .dialog .top p { margin-top: 6px; }
+.dialog .price { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: var(--t-value); font-weight: 700; }
+.dialog .short { color: var(--red); font-size: var(--t-tag); font-weight: 700; }
+.dialog .tip { font-size: var(--t-msg); color: var(--cream); line-height: 1.45; padding: 14px 18px; background: var(--surface-lo); border: var(--b) solid var(--line); border-radius: var(--r-in); }
+.dialog .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.dialog .dimtxt, .dimtxt { color: var(--dim); font-size: var(--t-desc); }
+.act .side .price { margin: 0; font-size: var(--t-value); }
+/* קיר התמונות */
+.lightbox { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.lightbox img { display: block; max-width: 1160px; max-height: 620px; border-radius: var(--r-in); border: var(--b) solid var(--line); }
+.lightbox .row { display: flex; align-items: center; gap: 12px; }
+.lightbox .row .act { min-width: 150px; min-height: 56px; }
+.lightbox .count { font-size: var(--t-value); font-weight: 700; color: var(--muted); min-width: 60px; text-align: center; }
+/* הטלפון: שורת כפתורים בתחתית */
+.phone .foot .row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; flex: 1; }

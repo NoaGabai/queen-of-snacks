@@ -41,7 +41,7 @@ class FocusList {
   refresh(focus) {
     const it = this.items();
     const want = focus ? it.find(b => b.dataset.k === focus) : null;
-    this.set(want || (it.includes(this.cur) ? this.cur : it[0]) || null, Input.usedKeys);
+    this.set(want || (it.includes(this.cur) ? this.cur : it[0]) || null, Input.usedKeys || !Input.isTouch);   // במחשב המיקוד מוצג מיד, במגע רק אחרי מקלדת
   }
   set(b, show) {
     if (this.cur) this.cur.classList.remove('sel');

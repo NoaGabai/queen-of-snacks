@@ -102,6 +102,7 @@ const Input = {
   pad: { active: false },   // הג'ויסטיק והכפתורים מוצגים רק כשמסך מבקש אותם
   _touchHeld: {},
   usedKeys: false,          // האם השתמשו במקלדת (ואז מציגים מיקוד על כפתורים)
+  mouse: null,              // מיקום העכבר בעולם (רק עכבר, לא מגע)
 
   down(a) { if (!this.held[a]) this.pressed[a] = true; this.held[a] = true; },
   up(a) { this.held[a] = false; },
@@ -182,12 +183,14 @@ canvas.addEventListener('pointerdown', e => {
   refreshTouchHeld();
 });
 canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') Input.mouse = toGame(e.clientX, e.clientY);   // לתוויות ריחוף
   if (!activeTouches.has(e.pointerId)) return;
   activeTouches.set(e.pointerId, toGame(e.clientX, e.clientY)); refreshTouchHeld();
 });
 for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   canvas.addEventListener(ev, e => { activeTouches.delete(e.pointerId); refreshTouchHeld(); });
 }
+canvas.addEventListener('pointerleave', () => { Input.mouse = null; });
 
 // ---------------------------------------------------------------------
 // מנהל מסכים + חלונות מעל המסך + מעבר בהאפלה

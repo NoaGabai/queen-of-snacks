@@ -40,7 +40,7 @@ const TitleScene = {
       title: 'משחק חדש: באיזו משבצת?',
       isEnabled: () => true,
       onPick: (i, d) => {
-        const start = () => { Save.startNew(i); Game.goClean(TestRoomScene); };
+        const start = () => { Save.startNew(i); Game.goClean(KitchenScene); };
         if (d) Confirm('בטוחה? המשחק הזה יימחק', start, {
           sub: `משבצת <bdi>${i + 1}</bdi> · רמה <bdi>${d.level}</bdi> · ${formatPlayTime(d.playTime)}`, yes: 'כן, למחוק',
         });
@@ -56,7 +56,7 @@ const TitleScene = {
       title: 'מאיפה ממשיכים?',
       isEnabled: (i, d) => !!d,
       canDelete: true,
-      onPick: (i) => { if (Save.load(i)) Game.goClean(TestRoomScene); },
+      onPick: (i) => { if (Save.load(i)) Game.goClean(sceneFor(Save.state)); },
     });
     // אחרי מחיקה, הכפתור "משחק שמור" צריך להתעדכן
     const exit = P.exit; P.exit = () => { exit(); this.build(); };
