@@ -67,7 +67,7 @@ function tinted(name, col) {
 }
 
 const BattleScene = {
-  id: 'battle', countsTime: true, usesPad: false,
+  id: 'battle', countsTime: true,
 
   start(key, opts) { this.key = key; this.opts = opts || {}; Game.goClean(this); },
 
@@ -82,13 +82,22 @@ const BattleScene = {
       fx: { shake: 0, amp: 2, flash: null, mOff: 0, eOff: 0, nums: [], burst: null, dis: null, bounce: 0, fade: 1, irit: null },
     };
     this.build();
+    this.dy = 0; Screen.onFit = () => { this.layoutShift(); this.render(); };
     const en = this.S.en;
     if (en.boss) { this.msg(`${en.he} מחכה בכיכר. מבוס לא בורחים!`); setTimeout(() => this.say('מה יש בזה?', 'mai', 1800), 450); }
     else this.msg(`${en.he} חוסמת את הדרך!`);
-    this.render();
+    this.layoutShift(); this.render();
     if (!en.boss) this.tutStart();
   },
-  exit() { this.L.unmount(); },
+  exit() { this.L.unmount(); if (Screen.onFit) Screen.onFit = null; },
+  // במסך נמוך (טלפון) התפריט מכסה יותר מהעולם: מזיזים את כל הזירה למעלה (עד 24px עולם),
+  // כך שהרגליים של מאי נשארות מעל התפריט. השמיים למעלה נחתכים קצת.
+  layoutShift() {
+    const m = this.L.q('.menu'); if (!m) return;
+    const top = (Screen.toUI(0, m.getBoundingClientRect().top).y - Screen.wy0) / Screen.k;   // ראש התפריט, ביחידות עולם
+    this.dy = clamp(Math.ceil(BMAI.foot + 3 - top), 0, 24);
+  },
+  wy(y) { return uy(y - (this.dy || 0)) + 'px'; },
 
   // ---------------- הדרכה (פתיחה וסוף v1 / ג): 3 בועות בקרב הראשון, כל אחת פעם אחת ----------------
   tutStart() {
@@ -119,10 +128,10 @@ const BattleScene = {
   tip(text, anchor, where = 'above', keep) {
     if (!anchor) return;
     if (!keep) this.clearTips();
-    const r = anchor.getBoundingClientRect(), s = stage.getBoundingClientRect(), sc = s.width / 1440;
-    const x = (r.left + r.width / 2 - s.left) / sc, y = where === 'below' ? (r.bottom - s.top) / sc + 70 : (r.top - s.top) / sc - 8;
+    const r = anchor.getBoundingClientRect(), p = Screen.toUI(r.left + r.width / 2, where === 'below' ? r.bottom : r.top);
+    const x = p.x, y = where === 'below' ? p.y + 70 : p.y - 8;
     const b = document.createElement('div'); b.className = 'say tut' + (where === 'below' ? ' up' : ''); b.textContent = text;
-    b.style.left = Math.min(1330, Math.max(110, x)) + 'px'; b.style.top = y + 'px';
+    b.style.left = clamp(x, 110, Screen.uw - 110) + 'px'; b.style.top = y + 'px';
     this.L.q('.battle').appendChild(b);
   },
   clearTips() { this.L.el.querySelectorAll('.say.tut').forEach(e => e.remove()); },
@@ -131,12 +140,12 @@ const BattleScene = {
   build() {
     const st = Save.state;
     this.L = Layer(`<div class="battle">
-      <div class="panel stat ehud" style="left:24px;top:24px;width:480px">
+      <div class="panel stat ehud">
         <div class="head"><span class="name"></span><span class="tag eweak"></span></div>
         <div class="meter"><span class="lbl">חיים</span><div class="bar ebar"><i></i></div><bdi class="val ehp" dir="ltr"></bdi></div>
       </div>
       <div class="intent"></div>
-      <div class="panel stat mhud" style="right:24px;top:388px;width:500px">
+      <div class="panel stat mhud">
         <div class="head"><span class="name">מאי</span><span class="sub">רמה <bdi>${st.level}</bdi></span></div>
         <div class="meter"><span class="lbl">חיים</span><div class="bar mbar"><i></i></div><bdi class="val mhp" dir="ltr"></bdi></div>
         <div class="meter"><span class="lbl">קראנץ׳</span><div class="pips"></div><bdi class="val mcr" dir="ltr"></bdi></div>
@@ -187,9 +196,9 @@ const BattleScene = {
   eh() { const im = Assets.get(this.S.en.sprNow); return im ? im.height : 40; },
   say(text, who, ms = 1300) {
     const b = document.createElement('div'); b.className = 'say bt'; b.textContent = text;
-    const p = who === 'mai' ? { x: BMAI.x, y: BMAI.foot - 108 } : who === 'irit' ? { x: 46, y: BMAI.foot - 104 }
+    const p = who === 'mai' ? (Screen.compact ? { x: BMAI.x + 66, y: BMAI.foot - 62 } : { x: BMAI.x, y: BMAI.foot - 108 }) : who === 'irit' ? { x: 46, y: BMAI.foot - 104 }
       : this.eh() > 90 ? { x: BENE.x - 40, y: BENE.foot - this.eh() + 30 } : { x: BENE.x, y: BENE.foot - this.eh() - 10 };
-    b.style.left = px(p.x); b.style.top = px(p.y); this.L.q('.battle').appendChild(b); if (ms) setTimeout(() => b.remove(), ms);
+    b.style.left = ux(p.x) + 'px'; b.style.top = this.wy(p.y); this.L.q('.battle').appendChild(b); if (ms) setTimeout(() => b.remove(), ms);
   },
   intentOf() { const E = this.S.en; return E.pattern[E.step % E.pattern.length]; },
 
@@ -210,8 +219,9 @@ const BattleScene = {
     const it = this.intentOf(), ib = q('.intent'), danger = it.t === 'charge' || it.t === 'burn' || (it.t === 'atk' && it.v >= 6);
     ib.innerHTML = icon(INTENT_IC[it.t]) + (it.v ? `<bdi>${it.v}</bdi>` : '');
     ib.className = 'intent' + (danger ? ' danger' : ''); ib.style.display = E.alive && !S.over ? 'flex' : 'none';
-    if (this.eh() > 90) { ib.style.left = px(BENE.x - 108); ib.style.top = px(BENE.foot - 96); }
-    else { ib.style.left = px(BENE.x + 26); ib.style.top = px(BENE.foot - this.eh() - 22); }
+    if (this.eh() > 90) { ib.style.left = ux(BENE.x - 108) + 'px'; ib.style.top = this.wy(BENE.foot - (Screen.compact ? 34 : 96)); }
+    else if (Screen.compact) { ib.style.left = ux(BENE.x - 74) + 'px'; ib.style.top = this.wy(BENE.foot - 34); }   // בטלפון: משמאל לירק (הלוחות למעלה)
+    else { ib.style.left = ux(BENE.x + 26) + 'px'; ib.style.top = this.wy(BENE.foot - this.eh() - 22); }
     // כפתורים
     const locked = S.busy || S.over;
     Save.state.moves.slice(0, 4).forEach((id, i) => {
@@ -223,7 +233,7 @@ const BattleScene = {
     rb.disabled = locked || M.roga <= 0; rb.classList.toggle('sel', S.pop);
     const fb = L.q('[data-k="flee"]'); fb.disabled = locked || !!E.boss; fb.querySelector('.d').textContent = E.boss ? 'לא בקרב בוס' : 'תמיד מצליחה';
     const pop = q('.rogaPop'); pop.hidden = !(S.pop && !locked);
-    if (!pop.hidden) { const r = rb.getBoundingClientRect(), s = stage.getBoundingClientRect(), sc = s.width / 1440; pop.style.left = ((r.right - s.left) / sc - 280) + 'px'; }
+    if (!pop.hidden) { const r = rb.getBoundingClientRect(); pop.style.left = (Screen.toUI(r.right, 0).x - 280) + 'px'; }
     const sp = L.q('[data-k="special"]'); if (sp) { sp.hidden = !(M.snack >= 100 && !S.over); sp.disabled = locked; }
     L.focus.refresh(S.pop && !locked ? 'eat' : undefined);
   },
@@ -424,8 +434,9 @@ const BattleScene = {
   draw(t) {
     const S = this.S, F = S.fx, T = t * 1000, dt = 16;
     let sx = 0, sy = 0; if (F.shake > 0) { F.shake -= dt; sx = Math.round((Math.random() * 2 - 1) * F.amp); sy = Math.round((Math.random() * 2 - 1) * F.amp); }
-    ctx.save(); ctx.translate(sx, sy);
+    ctx.save(); ctx.translate(sx, sy - (this.dy || 0));
     drawImg(S.en.bg, 0, 0);
+    if (this.dy) { const bg = Assets.get(S.en.bg); if (bg) ctx.drawImage(bg, 0, H - 1, W, 1, 0, H, W, this.dy + 4); }   // השורה התחתונה נמתחת לרצועה שנחשפה
     const E = S.en, ei = Assets.get(E.sprNow);
     if (E.alive && ei) {
       shadowAt(BENE.x, BENE.foot, ei.width * .45, .28);

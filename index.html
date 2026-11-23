@@ -12,19 +12,16 @@
 <link rel="stylesheet" href="css/ui.css">
 </head>
 <body>
-<!-- במה קבועה 1440×810 (= העולם 480×270 ×3), מוקטנת/מוגדלת למסך -->
+<!-- הרקע: הרחבה מטושטשת של העולם (רק כשיחס המסך שונה מ-16:9) -->
+<canvas id="amb" width="64" height="36" aria-hidden="true"></canvas>
+<!-- העולם: 480×270 ×3 = 1440×810, מוקטן/מוגדל למסך (engine.js / fit) -->
 <div id="stage">
   <canvas id="world" width="480" height="270"></canvas>
-  <div id="ui"></div>
-  <div id="pad" hidden>
-    <div class="stick"><i class="u"></i><i class="r"></i><i class="d"></i><i class="l"></i></div>
-    <div class="btn a">A</div>
-    <div class="btn b">B</div>
-  </div>
-  <div id="toast" class="panel" hidden></div>
-  <div id="fade"></div>
-  <div id="loading">טוען…</div>
 </div>
+<!-- הממשק: כל המסך, בקנה מידה משלו -->
+<div id="ui"><div id="toast" class="panel" hidden></div></div>
+<div id="fade"></div>
+<div id="loading">טוען…</div>
 <div id="rotate"><span id="rotateIcon"></span><div>סובבי את הטלפון לרוחב</div></div>
 
 <!-- סדר הטעינה חשוב: אייקונים ומנוע קודם, אחר כך המסכים, ובסוף main -->

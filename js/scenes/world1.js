@@ -29,7 +29,7 @@ const WORLD1_IMAGES = () => {
 };
 
 const World1Scene = {
-  id: 'world1', usesPad: true, countsTime: true,
+  id: 'world1', countsTime: true,
 
   enter() {
     const st = Save.state, pl = st.place;
@@ -91,8 +91,8 @@ const World1Scene = {
   // לחיצה על ירק = הולכים אליו (הקרב נפתח כשנוגעים); על רמז = הולכים לשם
   click(t) {
     const m = this.w.mai;
-    if (t.id.startsWith('veg:')) { const v = this.veg[+t.id.split(':')[1]]; m.path = [v.x, v.foot + 2]; m.onArrive = null; return true; }
-    if (['gap', 'crack', 'paws'].includes(t.id)) { const [x0, y0, x1, y1] = t.box; m.path = [(x0 + x1) / 2, (y0 + y1) / 2]; m.onArrive = null; return true; }
+    if (t.id.startsWith('veg:')) { const v = this.veg[+t.id.split(':')[1]]; this.w.walkTo(v.x, v.foot + 2); return true; }
+    if (['gap', 'crack', 'paws'].includes(t.id)) { const [x0, y0, x1, y1] = t.box; this.w.walkTo((x0 + x1) / 2, (y0 + y1) / 2); return true; }
     return false;
   },
 

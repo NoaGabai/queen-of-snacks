@@ -1,6 +1,9 @@
 /* =====================================================================
    מלכת הנישנושים – מערכת הממשק (לפי art-ui.md)
-   כל המידות בפיקסלים על במה של 1440×810. הבמה כולה מוקטנת למסך.
+   העולם: במה 1440×810 (480×270 ×3) שמוקטנת למסך, באמצע.
+   הממשק (#ui): כל המסך. רוחב/גובה לוגיים --uw/--uh ×קנה מידה משלו (engine.js / fit).
+   במסך 16:9 במחשב זה בדיוק 1440×810 כמו קודם. במסכים קטנים (body.compact) הטקסט גדל.
+   מיקום העולם בתוך הממשק: --wx/--wy/--ww/--wh.
    ===================================================================== */
 :root {
   --font: 'Heebo', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
@@ -13,6 +16,8 @@
   --pad: 16px;
   --t-name: 25px; --t-action: 22px; --t-msg: 21px; --t-value: 19px; --t-desc: 17px; --t-tag: 15px;
 }
+/* טלפון / מסך קטן: הממשק כבר מוגדל ביחס לעולם, והטקסט עולה עוד קצת כדי להיות קריא */
+body.compact { --t-name: 29px; --t-action: 26px; --t-msg: 24px; --t-value: 23px; --t-desc: 20px; --t-tag: 18px; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0; height: 100%; background: #0B0F1A; color: var(--cream); font-family: var(--font); overflow: hidden;
@@ -23,17 +28,15 @@ bdi { unicode-bidi: isolate; }
 [hidden] { display: none !important; }
 
 /* ---------- במה ---------- */
-#stage {
-  position: absolute; left: 50%; top: 50%; width: 1440px; height: 810px;
-  transform-origin: center center; overflow: hidden; background: #0B0F1A;
-}
-#world { position: absolute; inset: 0; width: 1440px; height: 810px; image-rendering: pixelated; image-rendering: crisp-edges; }
-#ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-#pad { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+#stage { position: fixed; left: 0; top: 0; width: 1440px; height: 810px; transform-origin: 0 0; overflow: hidden; background: #0B0F1A; }
+#world { position: absolute; inset: 0; width: 1440px; height: 810px; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
+#amb { position: fixed; inset: -6%; width: 112%; height: 112%; filter: blur(14px) brightness(.42) saturate(1.15); touch-action: none; }
+#ui { position: fixed; left: 0; top: 0; width: 1440px; height: 810px; transform-origin: 0 0; z-index: 1; pointer-events: none; }
 #toast { z-index: 3; }
-#fade { position: absolute; inset: 0; z-index: 4; background: #0B0F1A; opacity: 0; pointer-events: none; }
+#fade { position: fixed; inset: 0; z-index: 4; background: #0B0F1A; opacity: 0; pointer-events: none; }
 #fade.on { pointer-events: auto; }
-#loading { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; font-size: var(--t-msg); color: var(--muted); background: #0B0F1A; }
+#loading { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; font-size: 18px; color: var(--muted); background: #0B0F1A; }
+body.title-fallback #amb { display: none; }
 
 /* "סובבי את הטלפון" */
 #rotate {
@@ -56,7 +59,7 @@ bdi { unicode-bidi: isolate; }
 
 /* ---------- חלונית ---------- */
 .panel { position: absolute; background: var(--panel); border: var(--b) solid var(--gold); border-radius: var(--r); box-shadow: var(--shadow); }
-.center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.center { left: 50%; top: 50%; transform: translate(-50%, -50%) scale(var(--fit, 1)); }   /* --fit: מוקטן כשלא נכנס (engine.js) */
 .dialog { padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
 .dialog h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--gold); line-height: 1.25; }
 .dialog p { margin: 0; font-size: var(--t-desc); font-weight: 400; color: var(--muted); line-height: 1.4; }
@@ -114,24 +117,6 @@ bdi { unicode-bidi: isolate; }
 }
 .say:after { content: ''; position: absolute; bottom: -12px; left: 50%; margin-left: -6px; border: 6px solid transparent; border-top-color: #3A2618; }
 .say .key { font-size: var(--t-tag); font-weight: 400; color: #6B5A48; }
-
-/* ---------- כפתורי מגע ---------- */
-#pad .stick { position: absolute; left: 54px; top: 540px; width: 204px; height: 204px; border-radius: 50%;
-  background: rgba(20, 27, 46, .55); border: var(--b) solid rgba(57, 69, 106, .9); }
-#pad .stick i { position: absolute; width: 0; height: 0; border: 16px solid transparent; }
-#pad .stick .u { left: 86px; top: 14px; border-bottom: 22px solid var(--cream); border-top: 0; }
-#pad .stick .d { left: 86px; bottom: 14px; border-top: 22px solid var(--cream); border-bottom: 0; }
-#pad .stick .l { top: 86px; left: 14px; border-right: 22px solid var(--cream); border-left: 0; }
-#pad .stick .r { top: 86px; right: 14px; border-left: 22px solid var(--cream); border-right: 0; }
-#pad .stick i { opacity: .7; }
-#pad .stick i.on { opacity: 1; border-color: transparent; }
-#pad .stick .u.on { border-bottom-color: var(--gold); } #pad .stick .d.on { border-top-color: var(--gold); }
-#pad .stick .l.on { border-right-color: var(--gold); } #pad .stick .r.on { border-left-color: var(--gold); }
-#pad .btn { position: absolute; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--cream);
-  background: rgba(30, 39, 66, .8); border: var(--b) solid var(--line); box-shadow: 0 3px 0 #0A0E19; }
-#pad .btn.a { left: 1266px; top: 612px; width: 108px; height: 108px; font-size: var(--t-name); border-color: var(--gold); }
-#pad .btn.b { left: 1170px; top: 684px; width: 84px; height: 84px; font-size: var(--t-value); }
-#pad .btn.on { transform: translateY(3px); box-shadow: none; background: var(--surface-lo); }
 
 /* ---------- HUD של המפה ---------- */
 .hud { left: 24px; top: 24px; padding: 12px 18px; display: flex; gap: 22px; align-items: center; }
@@ -199,6 +184,12 @@ body.title-fallback:not(.title-picker) #stage { visibility: hidden; }
 .phone .foot { margin-top: auto; display: flex; }
 .phone .foot .act { flex: 1; }
 
+/* טלפון אמיתי (compact): הטלפון של מאי לרוחב, האפליקציות בשני טורים – כדי שהטקסט לא יוקטן */
+body.compact .phone { width: 940px; height: auto; border-radius: 30px; padding: 14px; }
+body.compact .phone .screen { padding: 10px 18px 16px; gap: 10px; }
+body.compact .phone .apps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px; }
+body.compact .phone .foot { margin-top: 6px; }
+
 /* =====================================================================
    מסכי הליכה (מטבח + מפות) – שלבים 4–5, לפי kitchen_screen / world1_screen
    ===================================================================== */
@@ -259,7 +250,9 @@ body.title-fallback:not(.title-picker) #stage { visibility: hidden; }
 .battle .intent.danger { background: #FFE2DC; border-color: var(--red); color: #8A1410; }
 .battle .intent:after { content: ''; position: absolute; bottom: -12px; right: 22px; border: 6px solid transparent; border-top-color: #3A2618; }
 .battle .intent.danger:after { border-top-color: var(--red); }
-.battle .menu { left: 12px; right: 12px; top: 598px; bottom: 12px; padding: var(--pad); display: flex; gap: 16px; }
+.battle .ehud { left: 24px; top: 24px; width: 480px; }
+.battle .mhud { right: 24px; bottom: 232px; width: 500px; }
+.battle .menu { left: max(12px, calc(50% - 708px)); right: max(12px, calc(50% - 708px)); bottom: 12px; height: 200px; padding: var(--pad); display: flex; gap: 16px; }
 .battle .moves { display: grid; grid-template-columns: repeat(2, 402px); grid-template-rows: repeat(2, 1fr); gap: 12px; flex: none; }
 .battle .items { display: grid; grid-template-rows: repeat(2, 1fr); gap: 12px; width: 208px; flex: none; }
 .battle .moves .act, .battle .items .act { min-height: 0; }
@@ -279,6 +272,28 @@ body.title-fallback:not(.title-picker) #stage { visibility: hidden; }
 .battle .rewards span { display: flex; align-items: center; gap: 8px; }
 .battle .rewards .legend { color: var(--gold); }
 .battle .say.bt { z-index: 2; }
+/* קרב בטלפון (compact): שני הלוחות בפס העליון (האויב משמאל, מאי מימין, בשתי שורות),
+   התפריט למטה צר יותר, והתגיות של המהלכים יושבות על המסגרת כדי לפנות מקום לשם */
+body.compact .battle .ehud { left: 12px; top: 12px; width: 440px; padding: 8px 14px 10px; gap: 4px; }
+body.compact .battle .mhud { left: 464px; right: 12px; top: 12px; bottom: auto; width: auto; padding: 8px 14px 10px;
+  display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 4px; }
+body.compact .battle .mhud .head { align-items: center; }
+body.compact .battle .meter { grid-template-columns: auto 1fr 52px; column-gap: 10px; }
+body.compact .battle .meter .lbl { font-size: 17px; }
+body.compact .battle .pips { gap: 4px; justify-content: flex-start; }
+body.compact .battle .pips .ic { width: 20px; height: 20px; }
+body.compact .battle .menu { left: 10px; right: 10px; bottom: 10px; height: 176px; padding: 12px; gap: 12px; }
+body.compact .battle .moves { grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 auto; min-width: 0; gap: 10px; }
+body.compact .battle .items { width: 186px; gap: 10px; }
+body.compact .battle .msg { flex: 0 0 236px; padding: 8px 14px; font-size: var(--t-desc); line-height: 1.35; }
+body.compact .battle .menu .act { padding: 6px 10px; column-gap: 10px; grid-template-columns: 44px 1fr; }
+body.compact .battle .menu .act .side { position: absolute; left: 10px; top: -11px; flex-direction: row; align-items: center; gap: 6px; padding: 0; }
+body.compact .battle .menu .act .side .tag { font-size: 14px; padding: 3px 6px; }
+body.compact .battle .menu .act .cost { min-height: 0; padding: 1px 3px; background: var(--surface); border-radius: 3px; }
+body.compact .battle .menu .act .cost .ic { width: 18px; height: 18px; }
+body.compact .battle .menu .act .side .free { display: none; }
+body.compact .battle .rogaPop { bottom: 196px; }
+body.compact .battle .special { left: auto; right: 12px; bottom: 198px; width: 380px; }
 /* בועות הדרכה בקרב הראשון: כמו בועת דיבור, עם מסגרת זהב */
 .battle .say.tut { z-index: 3; border-color: var(--gold); background: #FFF6DE; box-shadow: 0 0 0 3px rgba(226, 193, 120, .35), var(--shadow); }
 .battle .say.tut:after { border-top-color: var(--gold); }

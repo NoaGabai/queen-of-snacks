@@ -1,8 +1,10 @@
 // =====================================================================
 // מלכת הנישנושים – המנוע (שלב 3: מעטפת חדשה)
-// במה קבועה 1440×810 שמוקטנת למסך. בתוכה:
-//   • קנבס עולם 480×270 (פיקסל-ארט, מוגדל ×3 בלי טשטוש)
-//   • שכבת ממשק ב-HTML אמיתי (#ui) לפי art-ui.md
+// המסך מתמלא כולו, בכל יחס מסך (מחשב / טלפון):
+//   • קנבס עולם 480×270 (פיקסל-ארט, ×3 = במה 1440×810), הכי גדול שנכנס, באמצע
+//   • מסביבו (#amb) הרחבה מטושטשת של העולם, במקום פסים שחורים
+//   • שכבת ממשק ב-HTML אמיתי (#ui) לפי art-ui.md, על כל המסך, בקנה מידה משלה:
+//     במסכים קטנים (טלפון) הממשק גדל ביחס לעולם, כדי שהטקסט יהיה קריא (מצב compact)
 // כאן: לולאת משחק, מנהל מסכים וחלונות, טעינת תמונות, קלט (מקלדת + מגע),
 // צלילים, הודעות קופצות ושמירה כשהדף נסגר.
 // =====================================================================
@@ -36,24 +38,73 @@ function safeArea() {
   const c = getComputedStyle(safeProbe);
   return { t: parseFloat(c.paddingTop) || 0, r: parseFloat(c.paddingRight) || 0, b: parseFloat(c.paddingBottom) || 0, l: parseFloat(c.paddingLeft) || 0 };
 }
+const AMB = document.getElementById('amb'), actx = AMB.getContext('2d');
 function fit() {
   const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
   const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const a = safeArea(), uw = Math.max(1, vw - a.l - a.r), uh = Math.max(1, vh - a.t - a.b);
+  // העולם: הכי גדול שנכנס בשטח השימושי, באמצע
   const s = Math.min(uw / 1440, uh / 810);
   Screen.scale = s; Screen.u = s * K;                         // u = פיקסלי CSS ליחידת עולם
   Screen.area = { x: a.l, y: a.t, w: uw, h: uh };
   Screen.rect = { x: a.l + (uw - 1440 * s) / 2, y: a.t + (uh - 810 * s) / 2, w: 1440 * s, h: 810 * s };
-  stage.style.left = (a.l + uw / 2) + 'px'; stage.style.top = (a.t + uh / 2) + 'px';
-  stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+  stage.style.left = Screen.rect.x + 'px'; stage.style.top = Screen.rect.y + 'px';
+  stage.style.transform = `scale(${s})`;
+  // הממשק: מכסה את כל השטח השימושי. קנה המידה שלו לא יורד מתחת ל-0.62 (טקסט קריא בטלפון),
+  // אבל הגובה הלוגי שלו לא יורד מתחת ל-540 (כדי שהחלונות ייכנסו)
+  const su = Math.max(s, Math.min(0.62, uh / 540));
+  Screen.su = su; Screen.uw = uw / su; Screen.uh = uh / su;
+  Screen.k = K * s / su;                                      // פיקסלי ממשק ליחידת עולם
+  Screen.wx0 = (Screen.rect.x - a.l) / su; Screen.wy0 = (Screen.rect.y - a.t) / su;
+  Screen.compact = su > s * 1.04;
+  Object.assign(UIROOT.style, { left: a.l + 'px', top: a.t + 'px', width: Screen.uw + 'px', height: Screen.uh + 'px', transform: `scale(${su})` });
+  const R = UIROOT.style;
+  R.setProperty('--wx', Screen.wx0 + 'px'); R.setProperty('--wy', Screen.wy0 + 'px');
+  R.setProperty('--ww', W * Screen.k + 'px'); R.setProperty('--wh', H * Screen.k + 'px');
+  document.body.classList.toggle('compact', Screen.compact);
+  // הרקע המטושטש: רק כשיש שוליים סביב העולם
+  Screen.gutter = Screen.rect.w < vw - 2 || Screen.rect.h < vh - 2;
+  AMB.hidden = !Screen.gutter;
+  AMB.width = 64; AMB.height = Math.max(8, Math.round(64 * vh / vw));
+  fitPanels();
   if (Screen.onFit) Screen.onFit();
 }
+// עולם ← ממשק: מיקום (בפיקסלי ממשק) של נקודה בעולם 480×270
+const ux = x => Screen.wx0 + x * Screen.k;
+const uy = y => Screen.wy0 + y * Screen.k;
+// מסך (clientX/Y) ← פיקסלי ממשק
+Screen.toUI = (cx, cy) => ({ x: (cx - Screen.area.x) / Screen.su, y: (cy - Screen.area.y) / Screen.su });
+// מגבילים מספר לטווח
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// הרקע המטושטש סביב העולם: עותק קטן של הקנבס, מוגדל ומטושטש (CSS)
+let ambT = 0;
+function drawAmbient() {
+  if (!Screen.gutter || (ambT++ % 4)) return;
+  const aw = AMB.width, ah = AMB.height, c = Math.max(aw / W, ah / H) * 1.08;
+  actx.drawImage(canvas, (aw - W * c) / 2, (ah - H * c) / 2, W * c, H * c);
+}
+
+// חלונות באמצע (.center) שלא נכנסים במסך מוקטנים כדי להיכנס (משתנה --fit)
+function fitPanel(p) {
+  const w = p.offsetWidth, h = p.offsetHeight; if (!w || !h) return;
+  const f = Math.min(1, (Screen.uw - 24) / w, (Screen.uh - 24) / h);
+  p.style.setProperty('--fit', f.toFixed(4));
+}
+function fitPanels() { UIROOT.querySelectorAll('.center').forEach(fitPanel); }
+const panelRO = window.ResizeObserver ? new ResizeObserver(es => es.forEach(e => fitPanel(e.target))) : null;
+new MutationObserver(ms => {
+  for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) {
+    const list = n.matches('.center') ? [n] : [];
+    list.push(...n.querySelectorAll('.center'));
+    for (const p of list) { fitPanel(p); panelRO && panelRO.observe(p); }
+  }
+}).observe(UIROOT, { childList: true, subtree: true });
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', () => setTimeout(fit, 200));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 
 // עזרים קטנים ל-HTML
-const px = n => (n * K) + 'px';                 // פיקסל עולם ← פיקסל במה
 function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
@@ -110,14 +161,14 @@ const Sound = {
 window.addEventListener('pointerdown', () => Sound.unlock(), true);
 
 // ---------------------------------------------------------------------
-// קלט: מקלדת + מגע
+// קלט: מקלדת + עכבר/מגע
 // פעולות: up/down/left/right, a (אישור), b (חזרה), phone (פתיחת הטלפון)
+// מגע/עכבר: לחיצה על העולם = Input.taps; לחיצה וגרירה = Input.drag (מאי הולכת אחרי האצבע)
 // ---------------------------------------------------------------------
 const Input = {
   held: {}, pressed: {}, taps: [],
   isTouch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
-  pad: { active: false },   // הג'ויסטיק והכפתורים מוצגים רק כשמסך מבקש אותם
-  _touchHeld: {},
+  drag: null,               // { id, x, y, moved } – אצבע/עכבר שמוחזקים על העולם
   usedKeys: false,          // האם השתמשו במקלדת (ואז מציגים מיקוד על כפתורים)
   mouse: null,              // מיקום העכבר בעולם (רק עכבר, לא מגע)
 
@@ -125,7 +176,7 @@ const Input = {
   up(a) { this.held[a] = false; },
   tap(a) { this.pressed[a] = true; },          // לחיצה חד-פעמית (למשל מכפתור HTML)
   was(a) { return !!this.pressed[a]; },
-  is(a) { return !!this.held[a] || !!this._touchHeld[a]; },
+  is(a) { return !!this.held[a]; },
   endFrame() { this.pressed = {}; this.taps = []; },
 };
 
@@ -155,67 +206,32 @@ function toGame(clientX, clientY) {
   return { x: (clientX - r.left) / r.width * W, y: (clientY - r.top) / r.height * H };
 }
 
-// כפתורי המגע (בקואורדינטות עולם; הציור ב-HTML, ב-#pad)
-const TouchPad = {
-  dpad: { x: 52, y: 214, r: 34 },
-  a: { x: 440, y: 222, r: 18 },
-  b: { x: 404, y: 242, r: 14 },
-  el: document.getElementById('pad'),
-  _shown: null, _key: '',
-  actionsAt(p) {
-    const out = [];
-    const d = this.dpad, dx = p.x - d.x, dy = p.y - d.y;
-    if (Math.hypot(dx, dy) < d.r * 1.5 && Math.hypot(dx, dy) > 6) {
-      if (Math.abs(dx) > Math.abs(dy) * 0.5) out.push(dx < 0 ? 'left' : 'right');
-      if (Math.abs(dy) > Math.abs(dx) * 0.5) out.push(dy < 0 ? 'up' : 'down');
-    }
-    if (Math.hypot(p.x - this.a.x, p.y - this.a.y) < this.a.r * 1.4) out.push('a');
-    if (Math.hypot(p.x - this.b.x, p.y - this.b.y) < this.b.r * 1.4) out.push('b');
-    return out;
-  },
-  // מעדכן את ה-HTML רק כשמשהו משתנה
-  sync() {
-    const show = Input.pad.active;
-    if (show !== this._shown) { this.el.hidden = !show; this._shown = show; }
-    if (!show) return;
-    const h = Input._touchHeld, key = ['up', 'down', 'left', 'right', 'a', 'b'].map(k => h[k] ? 1 : 0).join('');
-    if (key === this._key) return;
-    this._key = key;
-    const q = s => this.el.querySelector(s);
-    q('.u').classList.toggle('on', !!h.up); q('.d').classList.toggle('on', !!h.down);
-    q('.l').classList.toggle('on', !!h.left); q('.r').classList.toggle('on', !!h.right);
-    q('.btn.a').classList.toggle('on', !!h.a); q('.btn.b').classList.toggle('on', !!h.b);
-  },
-};
-
-const activeTouches = new Map();
-function refreshTouchHeld() {
-  const held = {};
-  if (Input.pad.active) for (const p of activeTouches.values()) for (const a of TouchPad.actionsAt(p)) held[a] = true;
-  for (const a of ['a', 'b']) if (held[a] && !Input._touchHeld[a]) Input.pressed[a] = true;
-  Input._touchHeld = held;
-}
-canvas.addEventListener('pointerdown', e => {
+// לחיצה / גרירה על העולם (הקנבס, או השוליים המטושטשים סביבו)
+function onPointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
   e.preventDefault();
-  try { canvas.setPointerCapture(e.pointerId); } catch (_) { }
+  try { e.target.setPointerCapture(e.pointerId); } catch (_) { }
   const p = toGame(e.clientX, e.clientY);
-  activeTouches.set(e.pointerId, p);
   Input.taps.push(p);
-  refreshTouchHeld();
-});
-canvas.addEventListener('pointermove', e => {
-  if (e.pointerType === 'mouse') Input.mouse = toGame(e.clientX, e.clientY);   // לתוויות ריחוף
-  if (!activeTouches.has(e.pointerId)) return;
-  activeTouches.set(e.pointerId, toGame(e.clientX, e.clientY)); refreshTouchHeld();
-});
-for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-  canvas.addEventListener(ev, e => { activeTouches.delete(e.pointerId); refreshTouchHeld(); });
+  Input.drag = { id: e.pointerId, x: p.x, y: p.y, cx: e.clientX, cy: e.clientY, moved: false };
 }
-canvas.addEventListener('pointerleave', () => { Input.mouse = null; });
+function onPointerMove(e) {
+  if (e.pointerType === 'mouse') Input.mouse = e.target === canvas ? toGame(e.clientX, e.clientY) : null;   // לתוויות ריחוף
+  const d = Input.drag; if (!d || d.id !== e.pointerId) return;
+  const p = toGame(e.clientX, e.clientY); d.x = p.x; d.y = p.y;
+  if (!d.moved && Math.hypot(e.clientX - d.cx, e.clientY - d.cy) > 12) d.moved = true;   // מעבר ל-12px = גרירה, לא לחיצה
+}
+function onPointerUp(e) { if (Input.drag && Input.drag.id === e.pointerId) Input.drag = null; }
+for (const t of [canvas, AMB]) {
+  t.addEventListener('pointerdown', onPointerDown);
+  t.addEventListener('pointermove', onPointerMove);
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) t.addEventListener(ev, onPointerUp);
+  t.addEventListener('pointerleave', () => { Input.mouse = null; });
+}
 
 // ---------------------------------------------------------------------
 // מנהל מסכים + חלונות מעל המסך + מעבר בהאפלה
-// מסך/חלון = { enter, exit, update(dt), draw(t), usesPad?, countsTime? }
+// מסך/חלון = { enter, exit, update(dt), draw(t), countsTime? }
 // ---------------------------------------------------------------------
 const fadeEl = document.getElementById('fade');
 const toastEl = document.getElementById('toast');
@@ -223,7 +239,7 @@ const toastEl = document.getElementById('toast');
 const Game = {
   scene: null, next: null, fade: 0, fadeDir: 0, time: 0, toast: null,
   overlays: [],                       // חלונות מעל המסך (טלפון, אישור) – רק העליון מקבל קלט
-  push(o) { this.overlays.push(o); o.enter && o.enter(); },
+  push(o) { Input.drag = null; this.overlays.push(o); o.enter && o.enter(); },
   pop() { const o = this.overlays.pop(); o && o.exit && o.exit(); },
   top() { return this.overlays[this.overlays.length - 1] || this.scene; },
   // מעבר רך למסך אחר. opt: { ms, color } לדעיכה מותאמת, או { instant } (למשל כשמבקשים להפחית תנועה)
@@ -256,7 +272,6 @@ const Game = {
       } else if (this.fade <= 0 && this.fadeDir === -1) { this.fade = 0; this.fadeDir = 0; this.fadeSpeed = 4; fadeEl.style.background = ''; }
     } else if (this.scene) {
       const top = this.top();
-      Input.pad.active = !!(top.usesPad && Input.isTouch);
       top.update(dt);
       // זמן משחק נספר רק במסכי משחק (לא בתפריטים), כולל כשהטלפון פתוח
       if (this.scene.countsTime && Save.state) Save.state.playTime += dt;
@@ -267,7 +282,7 @@ const Game = {
     ctx.clearRect(0, 0, W, H);
     if (this.scene) this.scene.draw(this.time);
     for (const o of this.overlays) o.draw && o.draw(this.time);
-    TouchPad.sync();
+    drawAmbient();
     fadeEl.style.opacity = this.fade;
     fadeEl.classList.toggle('on', this.fade > 0);
   },

@@ -29,7 +29,7 @@ const KITCHEN_IMAGES = () => {
 };
 
 const KitchenScene = {
-  id: 'kitchen', usesPad: true, countsTime: true,
+  id: 'kitchen', countsTime: true,
   IRIT: { x: 244, foot: 134 }, LIZZY: { x: 42, foot: 222 },
 
   enter() {

@@ -2,7 +2,8 @@
 // מנוע הליכה משותף למטבח ולמפות (לפי אב-הטיפוסים kitchen_screen / world1_screen).
 //   • מאי 24×36 (assets/kitchen/mai_walk.png): 4 כיוונים × 4 פריימים
 //   • התנגשות לפי נקודת הרגליים (walkable(x,y) של המסך)
-//   • חיצים/ג'ויסטיק, או לחיצה על הרצפה = הולכת לשם, לחיצה על חפץ = הולכת אליו ומשתמשת בו
+//   • חיצים, לחיצה על הרצפה = הולכת לשם, גרירה = הולכת אחרי האצבע,
+//     לחיצה על חפץ = הולכת אליו ומשתמשת בו (גם כשהיא כבר לידו)
 //   • חץ זהוב מעל החפץ הקרוב, תווית כשמרחפים עם העכבר, A/Enter = שימוש
 //   • בועות דיבור, HUD, וחלון דיאלוג בסגנון art-ui
 // =====================================================================
@@ -17,7 +18,50 @@ class Walker {
     this.hover = null; this.T = 0; this.sparks = [];
   }
   place(x, y, dir) { Object.assign(this.mai, { x, y, path: null, onArrive: null }); if (dir) this.mai.dir = dir; }
-  stop() { this.mai.path = null; this.mai.onArrive = null; }
+  stop() { this.mai.path = null; this.mai.route = null; this.mai.onArrive = null; }
+
+  // הליכה לנקודה מסביב למכשולים (חיפוש על רשת של 4px, ואחר כך קיצור לקווים ישרים)
+  walkTo(tx, ty, cb = null) {
+    const m = this.mai, pts = this.findPath(m.x, m.y, tx, ty);
+    m.route = pts.slice(1); m.path = pts[0]; m.onArrive = cb;
+  }
+  clearLine(x0, y0, x1, y1) {
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2);
+    for (let i = 1; i <= n; i++) if (!this.o.walkable(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n)) return false;
+    return true;
+  }
+  findPath(sx, sy, tx, ty) {
+    if (this.clearLine(sx, sy, tx, ty)) return [[tx, ty]];
+    const G = 4, cw = Math.ceil(W / G), ch = Math.ceil(H / G), ok = new Uint8Array(cw * ch), prev = new Int32Array(cw * ch).fill(-1);
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) ok[j * cw + i] = this.o.walkable(i * G + G / 2, j * G + G / 2) ? 1 : 0;
+    const cell = (x, y) => clamp(Math.floor(y / G), 0, ch - 1) * cw + clamp(Math.floor(x / G), 0, cw - 1);
+    const start = cell(sx, sy), goal = cell(tx, ty);
+    // חיפוש לרוחב, ושומרים את התא הכי קרוב ליעד (אם היעד עצמו לא נגיש)
+    const q = [start]; prev[start] = start; let best = start, bd = 1e9;
+    for (let h = 0; h < q.length; h++) {
+      const c = q[h], ci = c % cw, cj = (c / cw) | 0;
+      const d = Math.hypot(ci * G + G / 2 - tx, cj * G + G / 2 - ty); if (d < bd) { bd = d; best = c; }
+      if (c === goal) { best = c; break; }
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        const ni = ci + di, nj = cj + dj; if (ni < 0 || nj < 0 || ni >= cw || nj >= ch) continue;
+        const n = nj * cw + ni; if (prev[n] >= 0 || !ok[n]) continue;
+        if (di && dj && !(ok[cj * cw + ni] && ok[nj * cw + ci])) continue;   // לא חותכים פינות
+        prev[n] = c; q.push(n);
+      }
+    }
+    const cells = []; for (let c = best; c !== start; c = prev[c]) cells.push(c);
+    cells.reverse();
+    const pts = cells.map(c => [(c % cw) * G + G / 2, ((c / cw) | 0) * G + G / 2]);
+    if (best === goal || this.o.walkable(tx, ty)) pts.push([tx, ty]);
+    if (!pts.length) return [[tx, ty]];
+    // קיצור: מכל נקודה קופצים לנקודה הכי רחוקה שרואים בקו ישר
+    const out = []; let cx = sx, cy = sy, i = 0;
+    while (i < pts.length) {
+      let j = pts.length - 1; while (j > i && !this.clearLine(cx, cy, pts[j][0], pts[j][1])) j--;
+      out.push(pts[j]); [cx, cy] = pts[j]; i = j + 1;
+    }
+    return out;
+  }
 
   step(dx, dy) {
     const m = this.mai, W_ = this.o.walkable, nx = m.x + dx, ny = m.y + dy;
@@ -61,31 +105,39 @@ class Walker {
   update(dt) {
     this.T += dt * 1000;
     const m = this.mai;
-    // לחיצה/נגיעה בקנבס (חוץ מנגיעות בג'ויסטיק ובכפתורים)
+    // לחיצה/נגיעה בעולם
     for (const p of Input.taps) {
-      if (Input.pad.active && (TouchPad.actionsAt(p).length || Math.hypot(p.x - TouchPad.dpad.x, p.y - TouchPad.dpad.y) < TouchPad.dpad.r * 1.6)) continue;
       const t = this.hitAt(p.x, p.y);
       if (t && this.o.click && this.o.click(t)) continue;      // למסך יש טיפול מיוחד (למשל ירק = הולכים אליו)
-      if (t && !t.passive) { const [ax, ay] = this.approach(t); m.path = [ax, ay]; m.onArrive = () => this.use(t); }
-      else if (this.o.walkable(p.x, p.y)) { m.path = [p.x, p.y]; m.onArrive = null; }
+      if (t && !t.passive) { const [ax, ay] = this.approach(t); this.walkTo(ax, ay, () => this.use(t)); }
+      else if (this.o.walkable(p.x, p.y)) this.walkTo(p.x, p.y);
       else if (t && t.onBlocked) t.onBlocked();
+      else if (p.x >= 0 && p.y >= 0 && p.x <= W && p.y <= H) this.walkTo(p.x, p.y);   // קיר/קצה: הולכת הכי קרוב שאפשר
     }
     if (Input.was('a')) { const t = this.nearest(); if (t) this.use(t); }
 
     let dx = 0, dy = 0;
     if (Input.is('left')) dx -= 1; if (Input.is('right')) dx += 1;
     if (Input.is('up')) dy -= 1; if (Input.is('down')) dy += 1;
-    if (dx || dy) m.path = null;
+    if (dx || dy) { m.path = null; m.route = null; }
+    // גרירה: הולכת לכיוון האצבע (מבטלת הליכה לחפץ שנלחץ בתחילת הגרירה)
+    const D = Input.drag;
+    if (!dx && !dy && D && D.moved) {
+      m.path = null; m.route = null; m.onArrive = null;
+      const ex = D.x - m.x, ey = D.y - m.y, d = Math.hypot(ex, ey);
+      if (d > 3) { dx = ex / d; dy = ey / d; }
+    }
     if (!dx && !dy && m.path) {
       const [tx, ty] = m.path, ex = tx - m.x, ey = ty - m.y, d = Math.hypot(ex, ey);
-      if (d < 1.2) { m.path = null; const cb = m.onArrive; m.onArrive = null; if (cb) cb(); } else { dx = ex / d; dy = ey / d; }
+      if (d < 1.2) { if (m.route && m.route.length) { m.path = m.route.shift(); } else { m.path = null; const cb = m.onArrive; m.onArrive = null; if (cb) cb(); } }
+      else { dx = ex / d; dy = ey / d; }
     }
     if (dx || dy) {
       const sp = (this.o.speed || 66) * dt, n = Math.hypot(dx, dy);
       const moved = this.step(dx / n * sp, dy / n * sp);
       if (Math.abs(dx) > Math.abs(dy)) m.dir = dx < 0 ? 'left' : 'right'; else m.dir = dy < 0 ? 'up' : 'down';
-      if (!moved && m.path) { m.path = null; const cb = m.onArrive; m.onArrive = null; if (cb) cb(); }
-      m.t += dt * 1000; m.f = Math.floor(m.t / 130) % 4;
+      if (!moved && m.path) { m.path = null; m.route = null; const cb = m.onArrive; m.onArrive = null; if (cb) cb(); }
+      if (moved) { m.t += dt * 1000; m.f = Math.floor(m.t / 130) % 4; } else { m.f = 0; m.t = 0; }
     } else { m.f = 0; m.t = 0; }
     // ריחוף עכבר
     this.hover = Input.mouse ? this.hitAt(Input.mouse.x, Input.mouse.y) : null;
@@ -149,13 +201,13 @@ const WalkUI = {
     if (!h) { el.hidden = true; return; }
     el.innerHTML = `${h.label}${h.sub ? `<span class="sub">${h.sub}</span>` : ''}`; el.hidden = false;
     const [x0, y0, x1] = h.box;
-    el.style.left = Math.min(1340, Math.max(110, (x0 + x1) / 2 * K)) + 'px'; el.style.top = Math.max(100, (y0 - 14) * K) + 'px';
+    el.style.left = clamp(ux((x0 + x1) / 2), 110, Screen.uw - 110) + 'px'; el.style.top = Math.max(100, uy(y0 - 14)) + 'px';
   },
   // בועת דיבור (אחת בכל פעם). cls: '' · 'shout' (אדומה) · 'far' (מקווקוות, שומעים מרחוק)
   bubble(L, text, x, y, ms = 1800, cls = '') {
     L.el.querySelectorAll('.say.walk').forEach(e => e.remove());
     const b = document.createElement('div'); b.className = 'say walk ' + cls; b.textContent = text;
-    b.style.left = Math.min(1300, Math.max(160, x * K)) + 'px'; b.style.top = Math.max(110, y * K) + 'px';
+    b.style.left = clamp(ux(x), 160, Screen.uw - 160) + 'px'; b.style.top = Math.max(110, uy(y)) + 'px';
     L.el.appendChild(b); if (ms) setTimeout(() => b.remove(), ms);
   },
 };
