@@ -172,7 +172,7 @@ const KitchenScene = {
 
   // --- קיר התמונות: חלון עם התמונה המלאה
   openPhoto(i) {
-    const n = ART.kitchen.photos;
+    const n = PHOTO_COUNT;
     if (!n) { this.sayAt('התמונות יגיעו בקרוב', [72, 50, 117, 80], 2000); return; }
     i = (i + n) % n;
     const L = Layer(`<div class="panel lightbox center"><img src="assets/kitchen/photo_${i}.jpg" alt="">
@@ -193,7 +193,10 @@ const KitchenScene = {
   draw(t) {
     const st = Save.state, L = ART.kitchen, T = t * 1000;
     drawImg('kitchen/room', 0, 0);
-    for (const n in L.decor) drawImg('kitchen/' + n + (st.decor.includes(n) ? '' : '_ghost'), 0, 0);
+    for (const n in L.decor) {
+      const has = st.decor.includes(n), real = n === 'photos' && has && Assets.get('kitchen/photos_real');
+      drawImg('kitchen/' + n + (real ? '_real' : has ? '' : '_ghost'), 0, 0);
+    }
     for (let i = 0; i < 5; i++) drawImg(st.legendary.includes(i) ? 'kitchen/snack_' + i : 'kitchen/snack_slot_' + i, 0, 0);
     drawImg('kitchen/seats', 0, 0);
     const dr = [];

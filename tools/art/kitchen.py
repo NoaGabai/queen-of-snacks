@@ -326,6 +326,8 @@ def neon():
 
 
 # Photo wall: real photos from Noa (assets/photos/), shrunk into tiny "pixel photos".
+# פרטיות: התמונות האמיתיות לא עולות ל-GitHub. photos.png = מסגרות זמניות (במאגר),
+# photos_real.png + photo_*.jpg = התמונות (רק במחשב של נועה, ב-.gitignore).
 PHOTO_DIR = 'photos/'
 PHOTOS = [
     dict(frame=(72, 53, 84, 68), col='E8B730', src='a7b0edf1-image.jpg', crop=(380, 560, 1659, 2000)),   # Mai + Noa, sunset selfie
@@ -368,16 +370,23 @@ def photo_thumb(p, path, crop):
     return t.convert('RGBA')
 
 
-@decor('photos', 35, (72, 50, 117, 80))
-def photos():
+def photo_wall(real):
+    """real=False: frames with soft placeholder colours (goes into the public repo).
+    real=True: the tiny pixel versions of Noa's photos (photos_real.png – stays only on her computer, see .gitignore)."""
     im = new(); d = ImageDraw.Draw(im)
-    for i, (p, (path, crop)) in enumerate(zip(PHOTOS, photo_files())):
+    files = photo_files() if real else [(None, None)] * len(PHOTOS)
+    for i, (p, (path, crop)) in enumerate(zip(PHOTOS, files)):
         x0, y0, x1, y1 = p['frame']
         d.rectangle((x0, y0, x1, y1), fill=hx(p['col']))
         t = photo_thumb(p, path, crop)
         if t is not None: im.alpha_composite(t, (x0 + 1, y0 + 1))
         else: d.rectangle((x0 + 1, y0 + 1, x1 - 1, y1 - 1), fill=hx(PLACEHOLDER[i]))
     return outline(im)
+
+
+@decor('photos', 35, (72, 50, 117, 80))
+def photos():
+    return photo_wall(False)
 
 
 def export_photos():
@@ -592,6 +601,10 @@ if __name__ == '__main__':
     for i in range(5): snack(i).save(f'{OUT}/snack_{i}.png'); snack_slot(i).save(f'{OUT}/snack_slot_{i}.png')
     mai, irit, liz = chars()
     n_photos = export_photos()
+    # the real photo wall is a separate, local-only file (the game uses it when it exists)
+    real = f'{OUT}/photos_real.png'
+    if n_photos: photo_wall(True).save(real)
+    elif os.path.exists(real): os.remove(real)
     layout = {
         'size': [W, H],
         'decor': {n: {'price': v['price'], 'bbox': v['bbox']} for n, v in DECOR.items()},

@@ -46,12 +46,13 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // ---------------------------------------------------------------------
 const Assets = {
   images: {},
-  load(list) {
+  // optional = קבצים שקיימים רק במחשב של נועה (התמונות האמיתיות) – בלי אזהרה כשהם חסרים
+  load(list, optional = false, ext = '.png') {
     return Promise.all(list.map(name => new Promise(res => {
       const img = new Image();
-      img.onload = () => { this.images[name] = img; res(); };
-      img.onerror = () => { console.warn('חסרה תמונה:', name); res(); };
-      img.src = 'assets/' + name + '.png';
+      img.onload = () => { this.images[name] = img; res(true); };
+      img.onerror = () => { if (!optional) console.warn('חסרה תמונה:', name); res(false); };
+      img.src = 'assets/' + name + ext;
     })));
   },
   get(name) { return this.images[name]; },

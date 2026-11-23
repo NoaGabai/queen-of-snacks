@@ -19,8 +19,13 @@ const SCENES = { kitchen: KitchenScene, world1: World1Scene };
 const WORLD_SCENES = { 1: World1Scene };     // עולמות 2–5 יתווספו בהמשך
 function sceneFor(st) { return SCENES[st.place && st.place.scene] || KitchenScene; }
 
+// התמונות האמיתיות לקיר לא נמצאות ב-GitHub (פרטיות): טוענים אותן רק אם הן קיימות במחשב
+let PHOTO_COUNT = 0;
+const loadPhotos = () => Assets.load(['kitchen/photos_real'], true).then(([has]) => has &&
+  Assets.load([0, 1, 2, 3].map(i => 'kitchen/photo_' + i), true, '.jpg').then(r => { PHOTO_COUNT = r.indexOf(false) < 0 ? r.length : r.indexOf(false); }));
+
 Promise.all([
-  loadFonts(),
+  loadFonts(), loadPhotos(),
   Assets.load([
     'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
     'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',

@@ -2,3 +2,8 @@
 .vscode/
 node_modules/
 __pycache__/
+
+# פרטיות: התמונות האמיתיות לקיר נשארות רק במחשב (לא עולות ל-GitHub)
+assets/photos/
+assets/kitchen/photos_real.png
+assets/kitchen/photo_*.jpg
