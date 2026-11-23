@@ -1,101 +1,176 @@
 // =====================================================================
-// חלונות ממשק משותפים: אישור (כן/לא) ובחירת משבצת שמירה
+// ממשק משותף (לפי art-ui.md):
+//   act()        – רכיב הכפתור האחיד (אריח אייקון | טקסט | צד), 4 מצבים
+//   FocusList    – ניווט במקלדת בין הכפתורים של שכבה (חיצים לפי מיקום, Enter, Esc)
+//   Layer        – שכבת HTML מעל הקנבס (מסך או חלון), שמתחברת למנהל המסכים
+//   Confirm      – חלון אישור (הפוקוס מתחיל על "לא")
+//   SlotPicker   – בחירת משבצת שמירה
 // =====================================================================
 
-function dim(a = 0.6) { ctx.fillStyle = `rgba(27,18,48,${a})`; ctx.fillRect(0, 0, W, H); }
-
 // ---------------------------------------------------------------------
-// חלון אישור: "בטוחה? ..." עם כן / לא
+// רכיב הכפתור האחיד
+// opt: { k, ic, flav, title, desc, side, cls, disabled, iconCls }
+// בלי ic = כפתור טקסט בלבד (cls 'plain')
 // ---------------------------------------------------------------------
-function Confirm(msg, onYes, opt = {}) {
-  const w = 260, h = 96, x = (W - w) / 2, y = (H - h) / 2;
-  const bw = 90, by = y + h - 38;
-  const o = {
-    enter() {
-      this.menu = new Menu([
-        { label: opt.no || 'לא', x: x + 20, y: by, w: bw, h: 26, onPress: () => { Game.pop(); opt.onNo && opt.onNo(); } },
-        { label: opt.yes || 'כן', x: x + w - 20 - bw, y: by, w: bw, h: 26, onPress: () => { Game.pop(); onYes(); } },
-      ], { focus: 0 });   // הפוקוס מתחיל על "לא" – הכי בטוח
-    },
-    update() {
-      if (Input.was('b')) { Sound.back(); Game.pop(); opt.onNo && opt.onNo(); return; }
-      this.menu.update();
-    },
-    draw(t) {
-      dim(0.55);
-      panel(x, y, w, h, PAL.paper);
-      text(msg, W / 2, y + 22, { size: 13, bold: true, color: PAL.outline });
-      if (opt.sub) text(opt.sub, W / 2, y + 40, { size: 10, color: '#7a5a44' });
-      this.menu.draw(t);
-    },
-  };
-  Game.push(o);
+function act(o) {
+  const tile = o.ic ? `<span class="tile">${icon(o.ic, o.iconCls || '')}</span>` : '';
+  const cls = 'act' + (o.ic ? '' : ' plain') + (o.cls ? ' ' + o.cls : '');
+  return `<button class="${cls}" tabindex="-1" ${o.k ? `data-k="${o.k}"` : ''} ${o.flav ? `data-flav="${o.flav}"` : ''} ${o.disabled ? 'disabled' : ''}>
+    ${tile}<span class="txt"><span class="t">${o.title}</span>${o.desc ? `<span class="d">${o.desc}</span>` : ''}</span>${o.ic ? `<span class="side">${o.side || ''}</span>` : ''}</button>`;
+}
+// כפתור אייקון מרובע (טלפון, מחיקה)
+function sqBtn(o) {
+  return `<button class="act sq ${o.cls || ''}" tabindex="-1" data-k="${o.k}" aria-label="${esc(o.label || '')}" title="${esc(o.label || '')}"><span class="tile">${icon(o.ic)}</span></button>`;
 }
 
 // ---------------------------------------------------------------------
-// בחירת משבצת שמירה (משמש את מסך הפתיחה ואת אפליקציית "שמירות")
+// ניווט במקלדת. החיצים זזים לכפתור הקרוב ביותר בכיוון (עובד ברשימות, בשורות ובטבלאות).
+// במגע/עכבר המיקוד לא מוצג עד שמשתמשים במקלדת.
+// ---------------------------------------------------------------------
+class FocusList {
+  constructor(root, opt = {}) {
+    this.root = root; this.cur = null;
+    root.addEventListener('pointerover', e => {
+      const b = e.target.closest('button.act');
+      if (b && e.pointerType === 'mouse' && !b.disabled) this.set(b, false);
+    });
+    this.refresh(opt.focus);
+  }
+  items() { return [...this.root.querySelectorAll('button.act')].filter(b => !b.disabled && b.offsetParent !== null); }
+  // focus: data-k של הכפתור שמתחילים בו (או כלום = הראשון)
+  refresh(focus) {
+    const it = this.items();
+    const want = focus ? it.find(b => b.dataset.k === focus) : null;
+    this.set(want || (it.includes(this.cur) ? this.cur : it[0]) || null, Input.usedKeys);
+  }
+  set(b, show) {
+    if (this.cur) this.cur.classList.remove('sel');
+    this.cur = b;
+    if (b && show) b.classList.add('sel');
+  }
+  move(dir) {
+    const it = this.items(); if (!it.length) return;
+    if (!this.cur || !it.includes(this.cur)) { this.set(it[0], true); return; }
+    const c = this.cur.getBoundingClientRect(), cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+    const v = dir === 'up' || dir === 'down', sign = (dir === 'down' || dir === 'right') ? 1 : -1;
+    let best = null, bs = Infinity, wrap = null, ws = Infinity;
+    for (const b of it) {
+      if (b === this.cur) continue;
+      const r = b.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+      const main = (v ? dy : dx) * sign, cross = Math.abs(v ? dx : dy);
+      if (main > 4) { const s = main + cross * 2; if (s < bs) { bs = s; best = b; } }
+      else if (v && main < -4) { const s = -main * 100 - cross; if (s < ws) { ws = s; wrap = b; } }   // גלישה מהסוף להתחלה
+    }
+    const nb = best || (v ? wrap : null);
+    if (nb) { this.set(nb, true); Sound.move(); } else if (!this.cur.classList.contains('sel')) this.set(this.cur, true);
+  }
+  press() {
+    const b = this.cur; if (!b) return;
+    if (!b.classList.contains('sel')) { this.set(b, true); return; }   // Enter ראשון רק מציג איפה המיקוד
+    b.classList.add('press');
+    setTimeout(() => { b.classList.remove('press'); if (b.isConnected && !b.disabled) b.click(); }, 90);
+  }
+  update() {
+    for (const d of ['up', 'down', 'left', 'right']) if (Input.was(d)) this.move(d);
+    if (Input.was('a')) this.press();
+  }
+}
+
+// צליל בחירה לכל לחיצה על כפתור בממשק
+UIROOT.addEventListener('click', e => { const b = e.target.closest('button.act'); if (b && !b.disabled && !b.dataset.silent) Sound.select(); });
+
+// ---------------------------------------------------------------------
+// שכבת HTML. מסך: Layer(html, {screen:true}); חלון: Layer(html) + Game.push.
+// opt: { focus, onBack, dim, cls, screen, onUpdate }
+// ---------------------------------------------------------------------
+function Layer(html, opt = {}) {
+  const node = el(`<div class="layer${opt.dim === false || opt.screen ? '' : ' dim'} ${opt.cls || ''}">${html}</div>`);
+  const L = {
+    el: node,
+    q(sel) { return node.querySelector(sel); },
+    // חיבור לחיצה לכפתור לפי data-k
+    on(k, fn) { const b = node.querySelector(`[data-k="${k}"]`); if (b) b.onclick = fn; return L; },
+    set(html2, focus) { node.innerHTML = html2; L.focus.refresh(focus); },
+    mount() {
+      if (opt.screen) UIROOT.prepend(node); else UIROOT.appendChild(node);
+      L.focus = new FocusList(node, { focus: opt.focus });
+      return L;
+    },
+    unmount() { node.remove(); },
+    // ממשק של חלון במנהל המסכים
+    enter() { L.mount(); opt.onEnter && opt.onEnter(L); },
+    exit() { L.unmount(); },
+    update(dt) {
+      if (Input.was('b')) { Sound.back(); (opt.onBack || (() => Game.pop()))(); return; }
+      L.focus.update();
+      opt.onUpdate && opt.onUpdate(dt);
+    },
+    draw() { },
+  };
+  return L;
+}
+
+// ---------------------------------------------------------------------
+// חלון אישור: "בטוחה? ..." עם לא / כן. הפוקוס מתחיל על "לא" – הכי בטוח.
+// ---------------------------------------------------------------------
+function Confirm(msg, onYes, opt = {}) {
+  const no = () => { Game.pop(); opt.onNo && opt.onNo(); };
+  const L = Layer(`
+    <div class="panel dialog center" style="width:640px">
+      <h2>${msg}</h2>
+      ${opt.sub ? `<p>${opt.sub}</p>` : ''}
+      <div class="row">
+        ${act({ k: 'no', title: opt.no || 'לא' })}
+        ${act({ k: 'yes', title: opt.yes || 'כן' })}
+      </div>
+    </div>`, { focus: 'no', onBack: no });
+  Game.push(L);
+  L.on('no', no).on('yes', () => { Game.pop(); onYes(); });
+  return L;
+}
+
+// ---------------------------------------------------------------------
+// בחירת משבצת שמירה (מסך הפתיחה ואפליקציית "שמירות")
 // opt: { title, isEnabled(i, data), onPick(i, data), canDelete }
 // ---------------------------------------------------------------------
 function SlotPicker(opt) {
-  const pw = 400, ph = 232, px = (W - pw) / 2, py = (H - ph) / 2;
-  const cw = 376, chh = 46, cx = px + 12;
-  const o = {
-    enter() { this.build(); },
-    build() {
-      const data = Save.all();
-      const items = data.map((d, i) => ({
-        x: cx, y: py + 34 + i * (chh + 8), w: cw, h: chh,
-        disabled: !opt.isEnabled(i, d),
-        onPress: () => opt.onPick(i, d),
-        render: (it, f, bob) => drawSlotCard(it, i, d, f, bob),
-      }));
-      // כפתור מחיקה קטן ליד כל משבצת מלאה (רק אם מבקשים)
-      if (opt.canDelete) data.forEach((d, i) => {
-        if (!d) return;
-        items.push({
-          x: cx + 6, y: py + 34 + i * (chh + 8) + chh - 20, w: 16, h: 16,
-          onPress: () => Confirm('למחוק את משבצת ' + (i + 1) + '?', () => {
-            Save.remove(i); Game.say('המשבצת נמחקה'); this.build();
-            if (!Save.any()) Game.pop();
-          }, { sub: 'אי אפשר לבטל את זה', yes: 'למחוק' }),
-          render: (it, f) => { panel(it.x, it.y, it.w, it.h, f ? PAL.warm : '#e9d9c4'); text('🗑', it.x + 8, it.y + 9, { size: 9 }); },
-        });
-      });
-      items.push({ label: 'חזרה', x: px + pw / 2 - 45, y: py + ph - 30, w: 90, h: 22, size: 12, onPress: () => Game.pop() });
-      const firstOk = items.findIndex(it => !it.disabled);
-      this.menu = new Menu(items, { focus: Math.max(0, firstOk) });
-    },
-    update() {
-      if (Input.was('b')) { Sound.back(); Game.pop(); return; }
-      this.menu.update();
-    },
-    draw(t) {
-      dim(0.6);
-      panel(px, py, pw, ph, '#4a2f6e', { light: 'rgba(255,255,255,0.3)' });
-      text(opt.title, W / 2, py + 17, { size: 15, bold: true, color: PAL.paper, stroke: PAL.outline, strokeWidth: 3 });
-      this.menu.draw(t);
-    },
+  const L = Layer('', { cls: 'picker' });
+  const build = (focus) => {
+    const data = Save.all();
+    const rows = data.map((d, i) => `<div class="slotRow">
+        ${slotCard(i, d, !opt.isEnabled(i, d))}
+        ${opt.canDelete && d ? sqBtn({ k: 'del' + i, ic: 'trash', label: 'למחוק את משבצת ' + (i + 1) }) : ''}
+      </div>`).join('');
+    L.set(`
+      <div class="panel dialog center slots">
+        <h2>${opt.title}</h2>
+        <div class="list">${rows}</div>
+        <div class="row" style="width:300px;align-self:center">${act({ k: 'back', title: 'חזרה' })}</div>
+      </div>`, focus);
+    data.forEach((d, i) => {
+      L.on('slot' + i, () => opt.onPick(i, d));
+      L.on('del' + i, () => Confirm(`למחוק את משבצת <bdi>${i + 1}</bdi>?`, () => {
+        Save.remove(i); Game.say('המשבצת נמחקה');
+        if (!Save.any()) Game.pop(); else build();
+      }, { sub: 'אי אפשר לבטל את זה.', yes: 'למחוק' }));
+    });
+    L.on('back', () => Game.pop());
   };
-  Game.push(o);
-  return o;
+  const origEnter = L.enter;
+  L.enter = () => { origEnter(); build(); };
+  L.rebuild = build;
+  Game.push(L);
+  return L;
 }
 
-function drawSlotCard(it, i, d, focused, bob) {
-  const x = it.x, y = it.y + bob, w = it.w, h = it.h;
+function slotCard(i, d, disabled) {
+  const n = `<bdi>${i + 1}</bdi>`;
+  if (!d) return act({ k: 'slot' + i, ic: 'star', title: `משבצת ${n}`, desc: 'ריקה', disabled });
   const active = Save.slot === i && Save.state;
-  const fill = it.disabled ? '#b9aa98' : focused ? PAL.warm : PAL.paper;
-  panel(x, y, w, h, fill);
-  const R = x + w - 10;
-  if (!d) {
-    text(`משבצת ${i + 1}`, R, y + 15, { size: 12, bold: true, color: PAL.outline, align: 'right' });
-    text('ריקה ✨', R, y + 32, { size: 11, color: '#7a5a44', align: 'right' });
-    return;
-  }
-  text(`משבצת ${i + 1} · עולם ${d.world}: ${WORLD_NAMES[d.world]}`, R, y + 14, { size: 12, bold: true, color: PAL.outline, align: 'right' });
-  text(`רמה ${d.level} · 👯 ${d.friends.length}/5 · ⏱ ${formatPlayTime(d.playTime)}`, R, y + 32, { size: 11, color: PAL.outline, align: 'right' });
-  text(formatDate(d.savedAt), x + 28, y + 14, { size: 9, color: '#7a5a44', align: 'left' });
-  if (active) {
-    panel(x + 28, y + 26, 62, 14, PAL.secondary);
-    text('המשחק הנוכחי', x + 59, y + 33, { size: 8, bold: true });
-  }
+  return act({
+    k: 'slot' + i, ic: 'disk', disabled,
+    title: `משבצת ${n} · ${WORLD_NAMES[d.world]}`,
+    desc: `עולם <bdi>${d.world}</bdi> · רמה <bdi>${d.level}</bdi> · חברות <bdi dir="ltr">${d.friends.length}/5</bdi> · ${formatPlayTime(d.playTime)}`,
+    side: `<span class="when"><bdi>${formatDate(d.savedAt)}</bdi></span>${active ? '<span class="tag">המשחק הנוכחי</span>' : ''}`,
+  });
 }

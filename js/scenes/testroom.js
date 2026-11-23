@@ -1,6 +1,6 @@
 // =====================================================================
-// חדר בדיקה (זמני) – כדי לבדוק תנועה וקלט לפני שבונים מפה אמיתית.
-// מאי כאן היא סקיצה קטנה בצבעים שלה; הספרייט של ההליכה (24×36) יגיע משיחת העיצוב.
+// חדר בדיקה (זמני) – כדי לבדוק תנועה, קלט, ליזי והטלפון לפני שבונים את המטבח (שלב 4).
+// מאי כאן היא עדיין סקיצה קטנה; בשלב 4 היא מתחלפת ב-mai_walk.png (24×36).
 // =====================================================================
 
 const TestRoomScene = {
@@ -12,7 +12,19 @@ const TestRoomScene = {
     this.mai = { x: pl.x, y: pl.y, dir: 'down', walk: 0, moving: false };
     this.lizzy = { x: 340, y: 124 };   // ליזי בחצי גודל במפה (זמני)
     this.room = { x: 24, y: 40, w: 432, h: 196 };
+    this._hud = '';
+    this.L = Layer(`
+      <div class="panel hud"></div>
+      <div class="panel hint">${Input.isTouch ? 'חדר בדיקה · הליכה בג׳ויסטיק · חזרה למסך הפתיחה: <bdi>B</bdi>' : 'חדר בדיקה · הליכה: חיצים או <bdi>WASD</bdi> · חזרה למסך הפתיחה: <bdi>Esc</bdi>'}</div>
+      ${phoneButtonHTML()}
+      <div class="say" hidden data-say="lizzy">ללטף את ליזי <span class="key">${Input.isTouch ? 'A' : 'Enter'}</span></div>`, { screen: true }).mount();
+    wirePhoneButton(this.L);
+    const s = this.L.q('[data-say=lizzy]');
+    s.style.left = px(this.lizzy.x + 10); s.style.top = px(this.lizzy.y - 4);
   },
+  exit() { this.L.unmount(); },
+
+  maxHp() { return 20 + 4 * ((Save.state ? Save.state.level : 1) - 1); },
 
   update(dt) {
     const m = this.mai, speed = 70;
@@ -35,14 +47,33 @@ const TestRoomScene = {
 
     if (Save.state) Save.state.place = { scene: 'testroom', x: Math.round(m.x), y: Math.round(m.y) };
 
-    const nearLizzy = Math.hypot(m.x - this.lizzy.x - 10, m.y - this.lizzy.y - 25) < 30;
-    this.nearLizzy = nearLizzy;
+    this.nearLizzy = Math.hypot(m.x - this.lizzy.x - 10, m.y - this.lizzy.y - 25) < 30;
     const tappedLizzy = Input.taps.some(p => Math.abs(p.x - this.lizzy.x - 10) < 16 && Math.abs(p.y - this.lizzy.y - 13) < 18);
-    if ((Input.was('a') || tappedLizzy) && nearLizzy) this.petLizzy();
+    if ((Input.was('a') || tappedLizzy) && this.nearLizzy) this.petLizzy();
     if (this.purr) this.purr = Math.max(0, this.purr - dt);
 
-    if (phoneButtonPressed()) { Sound.select(); Phone.open(() => Game.go(TestRoomScene)); return; }
+    this.syncUI();
+
+    if (phoneButtonPressed()) { Sound.select(); Phone.open(() => Game.goClean(TestRoomScene)); return; }
     if (Input.was('b')) { Sound.back(); Save.saveNow(); Game.go(TitleScene); }
+  },
+
+  // ה-HUD ב-HTML מתעדכן רק כשמשהו משתנה
+  syncUI() {
+    const st = Save.state;
+    if (st) {
+      const key = [st.hp, this.maxHp(), st.cigs, st.rugelach].join('|');
+      if (key !== this._hud) {
+        this._hud = key;
+        this.L.q('.hud').innerHTML =
+          `<span>${icon('heart')}<bdi dir="ltr">${st.hp}/${this.maxHp()}</bdi></span>` +
+          `<span>${icon('cig')}<bdi>${st.cigs}</bdi></span>` +
+          `<span>${icon('rugelach', 'ic-s')}<bdi>${st.rugelach}</bdi></span>`;
+      }
+    }
+    const say = this.L.q('[data-say=lizzy]');
+    const show = !!this.nearLizzy && !this.purr;
+    if (say.hidden === show) say.hidden = !show;
   },
 
   // ליזי = נקודת שמירה: ריפוי, מילוי רוגלך ושמירה אוטומטית
@@ -50,12 +81,12 @@ const TestRoomScene = {
     Sound.select(); this.purr = 2;
     const st = Save.state;
     if (st) {
-      st.hp = 20 + 4 * (st.level - 1);
+      st.hp = this.maxHp();
       st.rugelach = Math.max(st.rugelach, 3);
       st.lastLizzy = 'testroom';
       const first = !st.flags.lizzyTip; st.flags.lizzyTip = true;
       Save.saveNow();
-      Game.say(first ? 'ליזי: "פה שומרים ומתמלאים" 🐱💗' : `ליזי שמרה את המשחק ✓ 💗`);
+      Game.say(first ? 'ליזי: "פה שומרים ומתמלאים"' : `ליזי שמרה את המשחק במשבצת <bdi>${Save.slot + 1}</bdi>`);
     }
   },
 
@@ -75,26 +106,10 @@ const TestRoomScene = {
     rect(r.x - 2, r.y, 2, r.h, PAL.outline); rect(r.x + r.w, r.y, 2, r.h, PAL.outline);
 
     // סידור לפי עומק: מי שלמטה יותר מצויר אחרון
-    const items = [
+    [
       { y: this.lizzy.y + 25, draw: () => drawImgHalf(this.purr ? 'lizzy_purr' : 'lizzy_sit', this.lizzy.x, this.lizzy.y) },
       { y: this.mai.y, draw: () => drawMaiSketch(this.mai, t) },
-    ].sort((a, b) => a.y - b.y);
-    items.forEach(i => i.draw());
-
-    if (this.nearLizzy) text(Input.isTouch ? 'ללטף את ליזי (A)' : 'ללטף את ליזי (Enter)', this.lizzy.x + 10, this.lizzy.y - 8, {
-      size: 10, bold: true, stroke: PAL.outline, strokeWidth: 3,
-    });
-
-    panel(W / 2 - 150, 6, 300, 26, 'rgba(58,38,24,0.85)');
-    text(Input.isTouch ? 'חדר בדיקה · ג׳ויסטיק משמאל · B = למסך הפתיחה' : 'חדר בדיקה · חיצים / WASD · Esc = למסך הפתיחה',
-      W / 2, 20, { size: 11, color: PAL.paper });
-
-    // שורת מידע זמנית: משבצת וזמן משחק
-    if (Save.state) {
-      panel(6, 6, 74, 26, 'rgba(58,38,24,0.85)');
-      text(`💾 ${Save.slot + 1} · ⏱ ${formatPlayTime(Save.state.playTime)}`, 43, 20, { size: 10, color: PAL.paper });
-    }
-    drawPhoneButton(t);
+    ].sort((a, b) => a.y - b.y).forEach(i => i.draw());
   },
 };
 
@@ -104,17 +119,17 @@ function drawMaiSketch(m, t) {
   const y = Math.round(m.y - 24) - (m.moving && step ? 1 : 0);
   ctx.fillStyle = 'rgba(58,38,24,0.25)'; ctx.beginPath(); ctx.ellipse(m.x, m.y, 7, 2.5, 0, 0, Math.PI * 2); ctx.fill();
   const O = PAL.outline, HAIR = '#94603A', SKIN = '#EDBB8E', SW = '#60626C', BL = '#D6CCBA', PN = '#A0A2A7', SH = '#F2F0E8';
-  rect(x + 2, y - 1, 10, 26, O);                  // קו מתאר גס
-  rect(x + 3, y, 8, 9, HAIR);                     // שיער
+  rect(x + 2, y - 1, 10, 26, O);
+  rect(x + 3, y, 8, 9, HAIR);
   if (m.dir !== 'up') {
-    rect(x + 4, y + 2, 6, 6, SKIN);               // פנים
+    rect(x + 4, y + 2, 6, 6, SKIN);
     if (m.dir !== 'left') rect(x + (m.dir === 'right' ? 8 : 5), y + 4, 1, 1, '#3E2214');
     if (m.dir !== 'right') rect(x + (m.dir === 'left' ? 5 : 8), y + 4, 1, 1, '#3E2214');
   }
-  rect(x + 4, y + 1, 6, 1, '#3A3A40');             // משקפיים על הראש
-  rect(x + 3, y + 9, 8, 8, SW);                   // סווטשירט
-  rect(x + 3, y + 12, 1, 4, BL); rect(x + 10, y + 12, 1, 4, BL); // שרוולים מולבנים
-  rect(x + 4, y + 17, 3, 5 - (step ? 1 : 0), PN); // רגליים
+  rect(x + 4, y + 1, 6, 1, '#3A3A40');
+  rect(x + 3, y + 9, 8, 8, SW);
+  rect(x + 3, y + 12, 1, 4, BL); rect(x + 10, y + 12, 1, 4, BL);
+  rect(x + 4, y + 17, 3, 5 - (step ? 1 : 0), PN);
   rect(x + 7, y + 17, 3, 5 - (step ? 0 : 1), PN);
   rect(x + 4, y + 22 - (step ? 1 : 0), 3, 2, SH);
   rect(x + 7, y + 22 - (step ? 0 : 1), 3, 2, SH);

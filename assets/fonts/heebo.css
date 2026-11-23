@@ -1,0 +1,4 @@
+/* זמני: הגופן עוד לא נארז. מנסים Heebo שמותקן במחשב, ואם אין – גופן המערכת.
+   כדי לארוז אותו: ראו assets/fonts/README.md ואז python3 tools/build_fonts.py (הקובץ הזה יוחלף). */
+@font-face { font-family: 'Heebo'; font-weight: 400; src: local('Heebo'), local('Heebo-Regular'), local('Heebo Regular'); }
+@font-face { font-family: 'Heebo'; font-weight: 700; src: local('Heebo Bold'), local('Heebo-Bold'); }

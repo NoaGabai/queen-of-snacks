@@ -1,13 +1,27 @@
 // =====================================================================
-// נקודת הכניסה: טוענים תמונות, ומתחילים במסך הפתיחה
+// נקודת הכניסה: מחכים לגופן ולתמונות, ומתחילים במסך הפתיחה
 // =====================================================================
-resize();
-text('טוען...', W / 2, H / 2, { size: 14 });
+fit();
+document.getElementById('rotateIcon').innerHTML = icon('phone');
 
-Assets.load([
-  'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
-  'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
+// הגופן Heebo ארוז ב-assets/fonts/heebo.css. מחכים לו (עד 2 שניות) לפני הציור הראשון.
+// אם הוא חסר, המשחק ממשיך עם גופן המערכת.
+function loadFonts() {
+  if (!document.fonts || !document.fonts.load) return Promise.resolve();
+  const want = Promise.all([document.fonts.load('400 21px Heebo'), document.fonts.load('700 22px Heebo')])
+    .then(() => { if (!document.fonts.check('700 22px Heebo')) console.warn('הגופן Heebo לא נמצא – ראו assets/fonts/README.md'); })
+    .catch(() => { });
+  return Promise.race([want, new Promise(r => setTimeout(r, 2000))]);
+}
+
+Promise.all([
+  loadFonts(),
+  Assets.load([
+    'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
+    'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
+  ]),
 ]).then(() => {
+  document.getElementById('loading').remove();
   Game.go(TitleScene);
   startLoop();
 });

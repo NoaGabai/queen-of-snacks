@@ -87,11 +87,11 @@ const Save = {
   switchTo(i) { this.saveNow(); return this.load(i); },
 };
 
-// --- תצוגה ---
+// --- תצוגה (מחזירות HTML קטן עם <bdi> למספרים, לפי art-ui) ---
 function formatPlayTime(sec) {
   const m = Math.floor(sec / 60), h = Math.floor(m / 60);
-  if (h > 0) return `${h}:${String(m % 60).padStart(2, '0')} ש׳`;
-  return `${m} דק׳`;
+  if (h > 0) return `<bdi dir="ltr">${h}:${String(m % 60).padStart(2, '0')}</bdi> ש׳`;
+  return `<bdi>${m}</bdi> דק׳`;
 }
 function formatDate(ms) {
   const d = new Date(ms);

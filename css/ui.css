@@ -1,0 +1,169 @@
+/* =====================================================================
+   מלכת הנישנושים – מערכת הממשק (לפי art-ui.md)
+   כל המידות בפיקסלים על במה של 1440×810. הבמה כולה מוקטנת למסך.
+   ===================================================================== */
+:root {
+  --font: 'Heebo', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --panel: #141B2E; --surface: #1E2742; --surface-hi: #26315A; --surface-lo: #171E36;
+  --line: #39456A; --line-off: #2A3350;
+  --gold: #E2C178; --cream: #F2E8D5; --muted: #B9B2A3; --dim: #8C8778;
+  --red: #F0413C; --hp: #6CC86A; --hp-mid: #E9C04A; --snack: #E8B730;
+  --salty: #F7C531; --sweet: #B07A44; --spicy: #E2231A; --plain: #C9CBCE;
+  --b: 3px; --r: 6px; --r-in: 4px; --shadow: 0 3px 0 rgba(5, 8, 16, .45);
+  --pad: 16px;
+  --t-name: 25px; --t-action: 22px; --t-msg: 21px; --t-value: 19px; --t-desc: 17px; --t-tag: 15px;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; background: #0B0F1A; color: var(--cream); font-family: var(--font); overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
+bdi { unicode-bidi: isolate; }
+[hidden] { display: none !important; }
+
+/* ---------- במה ---------- */
+#stage {
+  position: absolute; left: 50%; top: 50%; width: 1440px; height: 810px;
+  transform-origin: center center; overflow: hidden; background: #0B0F1A;
+}
+#world { position: absolute; inset: 0; width: 1440px; height: 810px; image-rendering: pixelated; image-rendering: crisp-edges; }
+#ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+#pad { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+#toast { z-index: 3; }
+#fade { position: absolute; inset: 0; z-index: 4; background: #0B0F1A; opacity: 0; pointer-events: none; }
+#fade.on { pointer-events: auto; }
+#loading { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; font-size: var(--t-msg); color: var(--muted); background: #0B0F1A; }
+
+/* "סובבי את הטלפון" */
+#rotate {
+  display: none; position: fixed; inset: 0; z-index: 10; background: #0B0F1A; color: var(--cream);
+  font-family: var(--font); font-size: 22px; font-weight: 700;
+  flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+}
+#rotateIcon img { width: 72px; height: 72px; image-rendering: pixelated; animation: turn 1.6s ease-in-out infinite; }
+@keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+
+/* ---------- שכבות ---------- */
+.layer { position: absolute; inset: 0; pointer-events: none; }
+.layer.dim { background: rgba(11, 15, 26, .62); pointer-events: auto; }
+.layer button, .layer .panel { pointer-events: auto; }
+.ic { image-rendering: pixelated; display: block; flex: none; }
+.ic-m { width: 36px; height: 36px; }
+.ic-s { width: 24px; height: 24px; }
+.ic.flip { transform: scaleX(-1); }
+
+/* ---------- חלונית ---------- */
+.panel { position: absolute; background: var(--panel); border: var(--b) solid var(--gold); border-radius: var(--r); box-shadow: var(--shadow); }
+.center { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.dialog { padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+.dialog h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--gold); line-height: 1.25; }
+.dialog p { margin: 0; font-size: var(--t-desc); font-weight: 400; color: var(--muted); line-height: 1.4; }
+.dialog .row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 16px; margin-top: 4px; }
+.dialog .list { display: flex; flex-direction: column; gap: 12px; }
+
+/* ---------- רכיב הכפתור האחיד: אריח אייקון | טקסט | צד ---------- */
+.act {
+  position: relative; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; column-gap: 12px;
+  min-height: 74px; padding: 10px 16px; min-width: 0; margin: 0;
+  background: var(--surface); border: var(--b) solid var(--line); border-radius: var(--r-in);
+  box-shadow: 0 3px 0 #0A0E19; color: var(--cream); font-family: var(--font); text-align: right; cursor: pointer;
+}
+.act .tile { width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--r-in); background: #151C33; border: 2px solid var(--line); }
+.act .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.act .t { font-size: var(--t-action); font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.act .d { font-size: var(--t-desc); font-weight: 400; line-height: 1.2; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.act .side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 6px; align-self: stretch; padding: 2px 0; }
+.act .side .when { font-size: var(--t-tag); color: var(--dim); white-space: nowrap; }
+.act.plain { grid-template-columns: 1fr; text-align: center; min-height: 60px; }
+.act.plain .t { text-align: center; }
+.act[data-flav=salty] .tile { border-color: var(--salty); background: #2E2A18; }
+.act[data-flav=sweet] .tile { border-color: var(--sweet); background: #2A2018; }
+.act[data-flav=spicy] .tile { border-color: var(--spicy); background: #2E1818; }
+.act[data-flav=plain] .tile { border-color: var(--plain); background: #22283A; }
+/* מצבים: רגיל · מיקוד/נבחר · לחוץ · לא זמין */
+.act:hover:not(:disabled), .act.sel { border-color: var(--gold); background: var(--surface-hi); outline: none; }
+.act:active:not(:disabled), .act.press { transform: translateY(3px); box-shadow: none; background: var(--surface-lo); }
+.act:disabled { cursor: default; border-color: var(--line-off); background: #1A2038; box-shadow: none; }
+.act:disabled > * { opacity: .42; }
+.act:focus { outline: none; }
+
+/* כפתור אייקון מרובע (טלפון, מחיקה) – אותם 4 מצבים */
+.act.sq { grid-template-columns: 1fr; place-items: center; width: 74px; height: 74px; min-height: 0; padding: 0; }
+.act.sq .tile { border: none; background: transparent; }
+
+/* ---------- תגיות ---------- */
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-tag); font-weight: 700; line-height: 1; padding: 5px 8px; border-radius: var(--r-in); background: #2B2F45; color: var(--cream); white-space: nowrap; }
+.tag.adv { background: #3A3420; color: #F6D776; }
+.tag.warn { background: #3A1E20; color: #F6B0A8; }
+
+/* ---------- הודעה קופצת ---------- */
+#toast {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); max-width: 900px;
+  padding: 14px 24px; font-size: var(--t-msg); font-weight: 400; line-height: 1.45; color: var(--cream);
+  display: flex; align-items: center; gap: 12px; pointer-events: none; white-space: nowrap;
+}
+
+/* ---------- בועת דיבור ---------- */
+.say {
+  position: absolute; padding: 8px 14px; font-size: 20px; font-weight: 700; line-height: 1.2;
+  background: var(--cream); color: #2A1A10; border: var(--b) solid #3A2618; border-radius: var(--r);
+  white-space: nowrap; transform: translate(-50%, -100%); pointer-events: none; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 10px;
+}
+.say:after { content: ''; position: absolute; bottom: -12px; left: 50%; margin-left: -6px; border: 6px solid transparent; border-top-color: #3A2618; }
+.say .key { font-size: var(--t-tag); font-weight: 400; color: #6B5A48; }
+
+/* ---------- כפתורי מגע ---------- */
+#pad .stick { position: absolute; left: 54px; top: 540px; width: 204px; height: 204px; border-radius: 50%;
+  background: rgba(20, 27, 46, .55); border: var(--b) solid rgba(57, 69, 106, .9); }
+#pad .stick i { position: absolute; width: 0; height: 0; border: 16px solid transparent; }
+#pad .stick .u { left: 86px; top: 14px; border-bottom: 22px solid var(--cream); border-top: 0; }
+#pad .stick .d { left: 86px; bottom: 14px; border-top: 22px solid var(--cream); border-bottom: 0; }
+#pad .stick .l { top: 86px; left: 14px; border-right: 22px solid var(--cream); border-left: 0; }
+#pad .stick .r { top: 86px; right: 14px; border-left: 22px solid var(--cream); border-right: 0; }
+#pad .stick i { opacity: .7; }
+#pad .stick i.on { opacity: 1; border-color: transparent; }
+#pad .stick .u.on { border-bottom-color: var(--gold); } #pad .stick .d.on { border-top-color: var(--gold); }
+#pad .stick .l.on { border-right-color: var(--gold); } #pad .stick .r.on { border-left-color: var(--gold); }
+#pad .btn { position: absolute; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: var(--cream);
+  background: rgba(30, 39, 66, .8); border: var(--b) solid var(--line); box-shadow: 0 3px 0 #0A0E19; }
+#pad .btn.a { left: 1266px; top: 612px; width: 108px; height: 108px; font-size: var(--t-name); border-color: var(--gold); }
+#pad .btn.b { left: 1170px; top: 684px; width: 84px; height: 84px; font-size: var(--t-value); }
+#pad .btn.on { transform: translateY(3px); box-shadow: none; background: var(--surface-lo); }
+
+/* ---------- HUD של המפה ---------- */
+.hud { left: 24px; top: 24px; padding: 12px 18px; display: flex; gap: 22px; align-items: center; }
+.hud span { display: flex; align-items: center; gap: 8px; font-size: var(--t-value); font-weight: 700; }
+.phoneBtn { position: absolute; right: 24px; top: 24px; }
+.hint { left: 50%; top: 24px; transform: translateX(-50%); padding: 12px 20px; font-size: var(--t-desc); color: var(--muted); white-space: nowrap; }
+
+/* ---------- מסך פתיחה ---------- */
+#title .logo { position: absolute; left: 600px; width: 760px; top: 70px; text-align: center; }
+#title .logo h1 { margin: 0; font-size: 96px; font-weight: 700; line-height: 1.05; color: #F6D776; }
+#title .menu { position: absolute; left: 785px; width: 390px; top: 330px; display: flex; flex-direction: column; gap: 16px; }
+#title .ded { position: absolute; left: 600px; width: 760px; top: 640px; display: flex; justify-content: center; align-items: center; gap: 10px;
+  font-size: var(--t-msg); color: var(--cream); }
+#title .warn { position: absolute; left: 600px; width: 760px; top: 700px; display: flex; justify-content: center; }
+
+/* ---------- משבצות שמירה ---------- */
+.slots { width: 920px; }
+.slotRow { display: grid; grid-template-columns: 1fr auto; gap: 12px; }
+.slotRow .act:not(.sq) { min-height: 96px; }
+.slotRow .act.sq { height: 96px; }
+
+/* ---------- הטלפון של מאי ---------- */
+.phone { width: 520px; height: 750px; border-radius: 40px; padding: 18px; background: #0F1424; display: flex; }
+.phone .screen { flex: 1; border-radius: 26px; background: var(--surface-lo); border: 2px solid var(--line);
+  padding: 14px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+.phone .status { display: flex; justify-content: space-between; align-items: center; font-size: var(--t-tag); font-weight: 700; color: var(--muted); height: 26px; }
+.phone .notch { width: 110px; height: 22px; border-radius: 11px; background: #0F1424; }
+.phone .battery { width: 34px; height: 16px; border: 2px solid var(--muted); border-radius: 3px; padding: 2px; position: relative; }
+.phone .battery:after { content: ''; position: absolute; left: -6px; top: 3px; width: 3px; height: 6px; background: var(--muted); border-radius: 1px; }
+.phone .battery i { display: block; height: 100%; width: 80%; background: var(--hp); border-radius: 1px; margin-right: 0; }
+.phone h2 { margin: 8px 0 0; font-size: var(--t-name); font-weight: 700; color: var(--cream); }
+.phone .note { font-size: var(--t-desc); color: var(--muted); margin-top: -6px; }
+.phone .apps { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.phone .foot { margin-top: auto; display: flex; }
+.phone .foot .act { flex: 1; }

@@ -5,33 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1b1230">
+<meta name="theme-color" content="#0B0F1A">
 <title>מלכת הנישנושים</title>
-<style>
-  html, body {
-    margin: 0; height: 100%; background: #1b1230; overflow: hidden;
-    touch-action: none; user-select: none; -webkit-user-select: none;
-    -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-  }
-  #game {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    image-rendering: pixelated; image-rendering: crisp-edges;
-  }
-  #rotate {
-    display: none; position: fixed; inset: 0; background: #1b1230; color: #FFF4E0;
-    font-family: "Rubik", "Arial Hebrew", Arial, sans-serif; text-align: center;
-    flex-direction: column; align-items: center; justify-content: center; gap: 16px; font-size: 22px;
-  }
-  #rotate .phone { font-size: 64px; animation: turn 1.6s ease-in-out infinite; }
-  @keyframes turn { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
-  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
-</style>
+<!-- הגופן ארוז בתוך המשחק (Heebo 400/700). heebo.css נוצר מ-tools/build_fonts.py -->
+<link rel="stylesheet" href="assets/fonts/heebo.css">
+<link rel="stylesheet" href="css/ui.css">
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="rotate"><div class="phone">📱</div><div>סובבי את הטלפון לרוחב</div></div>
+<!-- במה קבועה 1440×810 (= העולם 480×270 ×3), מוקטנת/מוגדלת למסך -->
+<div id="stage">
+  <canvas id="world" width="480" height="270"></canvas>
+  <div id="ui"></div>
+  <div id="pad" hidden>
+    <div class="stick"><i class="u"></i><i class="r"></i><i class="d"></i><i class="l"></i></div>
+    <div class="btn a">A</div>
+    <div class="btn b">B</div>
+  </div>
+  <div id="toast" class="panel" hidden></div>
+  <div id="fade"></div>
+  <div id="loading">טוען…</div>
+</div>
+<div id="rotate"><span id="rotateIcon"></span><div>סובבי את הטלפון לרוחב</div></div>
 
-<!-- סדר הטעינה חשוב: המנוע קודם, אחר כך המסכים, ובסוף main -->
+<!-- סדר הטעינה חשוב: אייקונים ומנוע קודם, אחר כך המסכים, ובסוף main -->
+<script src="js/icons.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/save.js"></script>
 <script src="js/ui.js"></script>

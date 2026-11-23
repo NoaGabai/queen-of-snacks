@@ -1,41 +1,45 @@
 // =====================================================================
-// מלכת הנישנושים – המנוע (שלב 1: שלד)
-// מסך פנימי 480×270 (לפי art-bible), מוגדל לגודל המסך בלי טשטוש.
-// כאן: לולאת משחק, מנהל מסכים, טעינת תמונות, קלט (מקלדת + מגע),
-// כפתורים, טקסט בעברית וצלילים קטנים.
+// מלכת הנישנושים – המנוע (שלב 3: מעטפת חדשה)
+// במה קבועה 1440×810 שמוקטנת למסך. בתוכה:
+//   • קנבס עולם 480×270 (פיקסל-ארט, מוגדל ×3 בלי טשטוש)
+//   • שכבת ממשק ב-HTML אמיתי (#ui) לפי art-ui.md
+// כאן: לולאת משחק, מנהל מסכים וחלונות, טעינת תמונות, קלט (מקלדת + מגע),
+// צלילים, הודעות קופצות ושמירה כשהדף נסגר.
 // =====================================================================
 
-const W = 480, H = 270;
+const W = 480, H = 270, K = 3;   // עולם 480×270, במה ×3
 
 const PAL = {
-  outline: '#3A2618', paper: '#FFF4E0', primary: '#F28C38', secondary: '#7A4FB8',
+  outline: '#3A2618', paper: '#F2E8D5', primary: '#F28C38', secondary: '#7A4FB8',
   heart: '#E8445A', warm: '#FFD99A',
   salty: '#F7C531', sweet: '#8B5A2B', spicy: '#E2231A', plain: '#C9CBCE',
-  w1: '#5E8F3A', w1accent: '#F4F1DE',
 };
 
-const FONT = '"Rubik", "Arial Hebrew", "Arial", sans-serif';
-
 // ---------------------------------------------------------------------
-// מסך וקנבס
+// במה וקנבס
 // ---------------------------------------------------------------------
-const canvas = document.getElementById('game');
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const UIROOT = document.getElementById('ui');
 const Screen = { scale: 1 };
 
-function resize() {
-  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
-  const dpr = window.devicePixelRatio || 1;
+function fit() {
+  const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const s = Math.min(vw / 1440, vh / 810);
   Screen.scale = s;
-  canvas.style.width = Math.round(W * s) + 'px';
-  canvas.style.height = Math.round(H * s) + 'px';
-  canvas.width = Math.round(W * s * dpr);
-  canvas.height = Math.round(H * s * dpr);
-  ctx.setTransform(s * dpr, 0, 0, s * dpr, 0, 0);
-  ctx.imageSmoothingEnabled = false;
+  stage.style.transform = `translate(-50%, -50%) scale(${s})`;
 }
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+window.addEventListener('resize', fit);
+window.addEventListener('orientationchange', () => setTimeout(fit, 200));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+
+// עזרים קטנים ל-HTML
+const px = n => (n * K) + 'px';                 // פיקסל עולם ← פיקסל במה
+function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 // ---------------------------------------------------------------------
 // תמונות
@@ -63,39 +67,7 @@ function drawImg(name, x, y, flip = false) {
     ctx.drawImage(img, 0, 0); ctx.restore();
   } else ctx.drawImage(img, x, y);
 }
-
-// ---------------------------------------------------------------------
-// טקסט בעברית, עם קו מתאר וצל לפי art-bible
-// ---------------------------------------------------------------------
-function text(str, x, y, opt = {}) {
-  const size = opt.size || 12;
-  ctx.save();
-  ctx.font = `${opt.bold ? 'bold ' : ''}${size}px ${FONT}`;
-  ctx.direction = 'rtl';
-  ctx.textAlign = opt.align || 'center';
-  ctx.textBaseline = 'middle';
-  if (opt.shadow) { ctx.fillStyle = opt.shadow; ctx.fillText(str, x + 1.5, y + 2); }
-  if (opt.stroke) {
-    ctx.lineJoin = 'round'; ctx.lineWidth = opt.strokeWidth || 3;
-    ctx.strokeStyle = opt.stroke; ctx.strokeText(str, x, y);
-  }
-  ctx.fillStyle = opt.color || PAL.paper;
-  ctx.fillText(str, x, y);
-  ctx.restore();
-}
-
 function rect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
-
-// מסגרת "חרוטה": קצוות מוארים למעלה-שמאל וכהים למטה-ימין
-function panel(x, y, w, h, fill, opt = {}) {
-  x = Math.round(x); y = Math.round(y);
-  rect(x - 1, y - 1, w + 2, h + 2, PAL.outline);
-  rect(x, y, w, h, fill);
-  rect(x, y, w, 1, opt.light || 'rgba(255,255,255,0.45)');
-  rect(x, y, 1, h, opt.light || 'rgba(255,255,255,0.45)');
-  rect(x, y + h - 2, w, 2, opt.dark || 'rgba(0,0,0,0.25)');
-  rect(x + w - 1, y, 1, h, opt.dark || 'rgba(0,0,0,0.25)');
-}
 
 // ---------------------------------------------------------------------
 // צלילים (Web Audio) – נפתחים רק אחרי נגיעה ראשונה, כך דורשים הדפדפנים
@@ -118,6 +90,7 @@ const Sound = {
   select() { this.tone(523, 0.07); setTimeout(() => this.tone(784, 0.1), 60); },
   back() { this.tone(392, 0.09, 'square', 0.05, -120); },
 };
+window.addEventListener('pointerdown', () => Sound.unlock(), true);
 
 // ---------------------------------------------------------------------
 // קלט: מקלדת + מגע
@@ -126,11 +99,13 @@ const Sound = {
 const Input = {
   held: {}, pressed: {}, taps: [],
   isTouch: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
-  pad: { active: false },   // הג'ויסטיק/הכפתורים על המסך מוצגים רק כשמסך מבקש אותם
+  pad: { active: false },   // הג'ויסטיק והכפתורים מוצגים רק כשמסך מבקש אותם
   _touchHeld: {},
+  usedKeys: false,          // האם השתמשו במקלדת (ואז מציגים מיקוד על כפתורים)
 
   down(a) { if (!this.held[a]) this.pressed[a] = true; this.held[a] = true; },
   up(a) { this.held[a] = false; },
+  tap(a) { this.pressed[a] = true; },          // לחיצה חד-פעמית (למשל מכפתור HTML)
   was(a) { return !!this.pressed[a]; },
   is(a) { return !!this.held[a] || !!this._touchHeld[a]; },
   endFrame() { this.pressed = {}; this.taps = []; },
@@ -139,27 +114,32 @@ const Input = {
 const KEYMAP = {
   ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
-  Enter: 'a', Space: 'a', KeyZ: 'a', Escape: 'b', Backspace: 'b', KeyX: 'b',
+  Enter: 'a', NumpadEnter: 'a', Space: 'a', KeyZ: 'a', Escape: 'b', Backspace: 'b', KeyX: 'b',
   KeyP: 'phone', Tab: 'phone',
 };
 window.addEventListener('keydown', e => {
   Sound.unlock();
   const a = KEYMAP[e.code]; if (!a) return;
-  e.preventDefault(); if (!e.repeat) Input.down(a);
+  e.preventDefault(); Input.usedKeys = true;
+  if (!e.repeat) Input.down(a);
+  else if (['up', 'down', 'left', 'right'].includes(a)) Input.pressed[a] = true;   // חזרה בתפריטים כשמחזיקים חץ
 });
 window.addEventListener('keyup', e => { const a = KEYMAP[e.code]; if (a) Input.up(a); });
+window.addEventListener('blur', () => { Input.held = {}; });
 
-// מיקום נגיעה ← קואורדינטות פנימיות 480×270
+// מיקום נגיעה ← קואורדינטות עולם 480×270
 function toGame(clientX, clientY) {
   const r = canvas.getBoundingClientRect();
   return { x: (clientX - r.left) / r.width * W, y: (clientY - r.top) / r.height * H };
 }
 
-// כפתורי המגע על המסך (בצד שמאל כיוונים, בצד ימין A/B)
+// כפתורי המגע (בקואורדינטות עולם; הציור ב-HTML, ב-#pad)
 const TouchPad = {
   dpad: { x: 52, y: 214, r: 34 },
   a: { x: 440, y: 222, r: 18 },
   b: { x: 404, y: 242, r: 14 },
+  el: document.getElementById('pad'),
+  _shown: null, _key: '',
   actionsAt(p) {
     const out = [];
     const d = this.dpad, dx = p.x - d.x, dy = p.y - d.y;
@@ -171,24 +151,18 @@ const TouchPad = {
     if (Math.hypot(p.x - this.b.x, p.y - this.b.y) < this.b.r * 1.4) out.push('b');
     return out;
   },
-  draw() {
-    const d = this.dpad;
-    ctx.save(); ctx.globalAlpha = 0.55;
-    ctx.fillStyle = PAL.outline; ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = PAL.paper;
-    const arrow = (ang) => {
-      ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(ang);
-      ctx.beginPath(); ctx.moveTo(d.r - 8, 0); ctx.lineTo(d.r - 18, -8); ctx.lineTo(d.r - 18, 8); ctx.fill();
-      ctx.restore();
-    };
-    [0, Math.PI / 2, Math.PI, -Math.PI / 2].forEach(arrow);
-    for (const [k, b, label] of [['a', this.a, 'A'], ['b', this.b, 'B']]) {
-      ctx.fillStyle = Input.is(k) ? PAL.warm : (k === 'a' ? PAL.primary : PAL.secondary);
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.restore();
-    text('A', this.a.x, this.a.y + 1, { size: 14, bold: true });
-    text('B', this.b.x, this.b.y + 1, { size: 11, bold: true });
+  // מעדכן את ה-HTML רק כשמשהו משתנה
+  sync() {
+    const show = Input.pad.active;
+    if (show !== this._shown) { this.el.hidden = !show; this._shown = show; }
+    if (!show) return;
+    const h = Input._touchHeld, key = ['up', 'down', 'left', 'right', 'a', 'b'].map(k => h[k] ? 1 : 0).join('');
+    if (key === this._key) return;
+    this._key = key;
+    const q = s => this.el.querySelector(s);
+    q('.u').classList.toggle('on', !!h.up); q('.d').classList.toggle('on', !!h.down);
+    q('.l').classList.toggle('on', !!h.left); q('.r').classList.toggle('on', !!h.right);
+    q('.btn.a').classList.toggle('on', !!h.a); q('.btn.b').classList.toggle('on', !!h.b);
   },
 };
 
@@ -200,7 +174,8 @@ function refreshTouchHeld() {
   Input._touchHeld = held;
 }
 canvas.addEventListener('pointerdown', e => {
-  Sound.unlock(); e.preventDefault();
+  e.preventDefault();
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) { }
   const p = toGame(e.clientX, e.clientY);
   activeTouches.set(e.pointerId, p);
   Input.taps.push(p);
@@ -210,48 +185,17 @@ canvas.addEventListener('pointermove', e => {
   if (!activeTouches.has(e.pointerId)) return;
   activeTouches.set(e.pointerId, toGame(e.clientX, e.clientY)); refreshTouchHeld();
 });
-for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) {
   canvas.addEventListener(ev, e => { activeTouches.delete(e.pointerId); refreshTouchHeld(); });
 }
 
 // ---------------------------------------------------------------------
-// תפריט כפתורים: נגיעה ישירה, או חיצים + Enter במקלדת
+// מנהל מסכים + חלונות מעל המסך + מעבר בהאפלה
+// מסך/חלון = { enter, exit, update(dt), draw(t), usesPad?, countsTime? }
 // ---------------------------------------------------------------------
-class Menu {
-  constructor(items, opt = {}) {
-    this.items = items;           // [{label, x, y, w, h, onPress, disabled}]
-    this.focus = opt.focus || 0;
-    this.showFocus = !Input.isTouch;
-  }
-  update() {
-    const n = this.items.length;
-    if (Input.was('down')) { this.focus = (this.focus + 1) % n; this.showFocus = true; Sound.move(); }
-    if (Input.was('up')) { this.focus = (this.focus - 1 + n) % n; this.showFocus = true; Sound.move(); }
-    if (Input.was('a') && this.showFocus) return this.press(this.items[this.focus]);
-    if (Input.was('a')) { this.showFocus = true; return; }
-    for (const t of Input.taps) {
-      const it = this.items.find(i => t.x >= i.x && t.x <= i.x + i.w && t.y >= i.y && t.y <= i.y + i.h);
-      if (it) { this.focus = this.items.indexOf(it); return this.press(it); }
-    }
-  }
-  press(it) { if (it.disabled) { Sound.back(); return; } Sound.select(); it.onPress && it.onPress(); }
-  draw(t) {
-    this.items.forEach((it, i) => {
-      const f = this.showFocus && i === this.focus;
-      const bob = f ? Math.round(Math.sin(t * 6)) : 0;
-      if (it.render) { it.render(it, f, bob, t); return; }   // כפתור עם ציור מיוחד (למשל משבצת שמירה)
-      panel(it.x, it.y + bob, it.w, it.h, it.disabled ? '#8a7f74' : (f ? PAL.warm : PAL.primary));
-      text(it.label, it.x + it.w / 2, it.y + it.h / 2 + bob + 1, {
-        size: it.size || 14, bold: true, color: PAL.outline,
-      });
-      if (f) text('◀', it.x - 10, it.y + it.h / 2 + bob, { size: 10, color: PAL.warm });
-    });
-  }
-}
+const fadeEl = document.getElementById('fade');
+const toastEl = document.getElementById('toast');
 
-// ---------------------------------------------------------------------
-// מנהל מסכים + מעבר בהאפלה
-// ---------------------------------------------------------------------
 const Game = {
   scene: null, next: null, fade: 0, fadeDir: 0, time: 0, toast: null,
   overlays: [],                       // חלונות מעל המסך (טלפון, אישור) – רק העליון מקבל קלט
@@ -262,9 +206,12 @@ const Game = {
     if (!this.scene) { this.scene = scene; scene.enter && scene.enter(); return; }
     this.next = scene; this.fadeDir = 1;
   },
-  // מעבר מיידי שסוגר גם את כל החלונות הפתוחים
   goClean(scene) { while (this.overlays.length) this.pop(); this.go(scene); },
-  say(msg, secs = 2.2) { this.toast = { msg, t: secs }; },
+  // הודעה קופצת בתחתית. אפשר להעביר HTML (למשל אייקון)
+  say(html, secs = 2.4) {
+    this.toast = { t: secs };
+    toastEl.innerHTML = html; toastEl.hidden = false;
+  },
   update(dt) {
     this.time += dt;
     if (this.fadeDir) {
@@ -282,19 +229,15 @@ const Game = {
       // זמן משחק נספר רק במסכי משחק (לא בתפריטים), כולל כשהטלפון פתוח
       if (this.scene.countsTime && Save.state) Save.state.playTime += dt;
     }
-    if (this.toast && (this.toast.t -= dt) <= 0) this.toast = null;
+    if (this.toast && (this.toast.t -= dt) <= 0) { this.toast = null; toastEl.hidden = true; }
   },
   draw() {
     ctx.clearRect(0, 0, W, H);
     if (this.scene) this.scene.draw(this.time);
-    for (const o of this.overlays) o.draw(this.time);
-    if (Input.pad.active) TouchPad.draw();
-    if (this.toast) {
-      const w = 260;
-      panel(W / 2 - w / 2, H - 46, w, 26, PAL.paper);
-      text(this.toast.msg, W / 2, H - 32, { size: 12, color: PAL.outline, bold: true });
-    }
-    if (this.fade > 0) { ctx.fillStyle = `rgba(27,18,48,${this.fade})`; ctx.fillRect(0, 0, W, H); }
+    for (const o of this.overlays) o.draw && o.draw(this.time);
+    TouchPad.sync();
+    fadeEl.style.opacity = this.fade;
+    fadeEl.classList.toggle('on', this.fade > 0);
   },
 };
 
