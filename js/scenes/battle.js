@@ -66,6 +66,7 @@ const BattleScene = {
       busy: false, over: false, pop: false, iritUsed: false, arrow: null,
       fx: { shake: 0, amp: 2, flash: null, mOff: 0, eOff: 0, nums: [], burst: null, dis: null, bounce: 0, fade: 1, irit: null },
     };
+    this.bid = (this.bid || 0) + 1;
     this.build();
     this.dy = 0; Screen.onFit = () => { this.layoutShift(); this.render(); };
     const en = this.S.en;
@@ -80,7 +81,8 @@ const BattleScene = {
   layoutShift() {
     const m = this.L.q('.menu'); if (!m) return;
     const top = (Screen.toUI(0, m.getBoundingClientRect().top).y - Screen.wy0) / Screen.k;   // ראש התפריט, ביחידות עולם
-    this.dy = clamp(Math.ceil(BMAI.foot + 3 - top), 0, 24);
+    // בוס גבוה: מזיזים פחות, כדי שהפנים שלו לא ייכנסו מתחת ללוחות שלמעלה
+    this.dy = clamp(Math.ceil(BMAI.foot + 3 - top), 0, this.eh() > 90 ? 12 : 24);
   },
   wy(y) { return uy(y - (this.dy || 0)) + 'px'; },
 
@@ -88,15 +90,16 @@ const BattleScene = {
   tutStart() {
     const f = Save.state.flags, E = this.S.en, he = E.g === 'm';
     if (f.tut1) return;
+    const bid = this.bid;
     setTimeout(() => {
-      if (Game.scene !== this || this.S.over) return;
+      if (Game.scene !== this || this.bid !== bid || this.S.over) return;
       f.tut1 = true; this.tip(he ? 'תראי מה הוא מתכנן' : 'תראי מה היא מתכננת', this.L.q('.intent'), 'above');
       setTimeout(() => {
-        if (Game.scene !== this || this.S.busy || this.S.over || f.tut2) return;
-        const i = Save.state.moves.findIndex(m => m && MOVES[m].pow && MOVES[m].flav === E.weak);
+        if (Game.scene !== this || this.bid !== bid || this.S.busy || this.S.over || f.tut2) return;
+        const i = this.slots.findIndex(m => m && MOVES[m].pow && MOVES[m].flav === E.weak);
         if (i < 0) return;
         f.tut2 = true;
-        const fl = FLAV[E.weak].he, mv = MOVE_NAMES[Save.state.moves[i]];
+        const fl = FLAV[E.weak].he, mv = MOVE_NAMES[this.slots[i]];
         this.tip(`${mv} ${fl}, ו${he ? 'הוא לא סובל' : 'היא לא סובלת'} מ${fl}`, this.L.q(`[data-k="mv${i}"]`), 'above', true);
       }, 2400);
     }, 1300);
@@ -105,7 +108,7 @@ const BattleScene = {
   tutCharge() {
     const f = Save.state.flags, S = this.S;
     if (f.tut3 || S.busy || S.over || this.intentOf().t !== 'charge') return;
-    const i = Save.state.moves.indexOf('cuddle'); if (i < 0) return;
+    const i = this.slots.indexOf('cuddle'); if (i < 0) return;
     f.tut3 = true;
     this.tip(`${S.en.g === 'm' ? 'הוא מתכונן' : 'היא מתכוננת'} למכה חזקה, תתכרבלי!`, this.L.q(`[data-k="mv${i}"]`), 'above', true);
   },
@@ -143,7 +146,7 @@ const BattleScene = {
     </div>`, { screen: true }).mount();
     const L = this.L;
     // 4 משבצות מהלכים (מהתיק של מאי)
-    const slots = [0, 1, 2, 3].map(i => st.moves[i]);
+    const slots = this.slots = [0, 1, 2, 3].map(i => st.moves[i]);   // המהלכים של הקרב הזה (גם אם נפתח מהלך חדש בסופו)
     L.q('.moves').innerHTML = slots.map((id, i) => {
       if (!id) return act({ k: 'mv' + i, title: 'משבצת ריקה', desc: 'מהלכים חדשים: ברמות ובשקיות', ic: 'star', cls: 'empty', disabled: true });
       const m = MOVES[id];
@@ -208,7 +211,7 @@ const BattleScene = {
     else { ib.style.left = ux(BENE.x + 26) + 'px'; ib.style.top = this.wy(BENE.foot - this.eh() - 22); }
     // כפתורים
     const locked = S.busy || S.over;
-    Save.state.moves.slice(0, 4).forEach((id, i) => {
+    this.slots.forEach((id, i) => {
       const b = L.q(`[data-k="mv${i}"]`); if (!b || !id) return; const m = MOVES[id];
       b.disabled = locked || M.crunch < m.cost;
       b.querySelector('[data-adv]').hidden = !(m.pow && m.flav === E.weak);

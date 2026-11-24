@@ -273,16 +273,21 @@ body.compact .phone .foot { margin-top: 6px; }
 .battle .rewards span { display: flex; align-items: center; gap: 8px; }
 .battle .rewards .legend { color: var(--gold); }
 .battle .say.bt { z-index: 2; }
-/* קרב בטלפון (compact): שני הלוחות בפס העליון (האויב משמאל, מאי מימין, בשתי שורות),
-   התפריט למטה צר יותר, והתגיות של המהלכים יושבות על המסגרת כדי לפנות מקום לשם */
-body.compact .battle .ehud { left: 12px; top: 12px; width: 440px; padding: 8px 14px 10px; gap: 4px; }
-body.compact .battle .mhud { left: 464px; right: 12px; top: 12px; bottom: auto; width: auto; padding: 8px 14px 10px;
-  display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 4px; }
-body.compact .battle .mhud .head { align-items: center; }
-body.compact .battle .meter { grid-template-columns: auto 1fr 52px; column-gap: 10px; }
-body.compact .battle .meter .lbl { font-size: 17px; }
-body.compact .battle .pips { gap: 4px; justify-content: flex-start; }
-body.compact .battle .pips .ic { width: 20px; height: 20px; }
+/* קרב בטלפון (compact): שני הלוחות הם פס דק אחד למעלה (האויב משמאל, מאי מימין), כדי שגם בוס גבוה
+   יישאר עם הפנים בחוץ. התפריט למטה צר יותר, והתגיות של המהלכים יושבות על המסגרת כדי לפנות מקום לשם */
+body.compact .battle .stat { padding: 6px 12px; flex-direction: row; align-items: center; gap: 12px; }
+body.compact .battle .stat .head { flex: none; gap: 8px; align-items: center; }
+body.compact .battle .stat .name { font-size: var(--t-value); }
+body.compact .battle .stat .tag { font-size: 14px; padding: 3px 6px; }
+body.compact .battle .ehud { left: 12px; top: 10px; width: 470px; }
+body.compact .battle .mhud { left: 494px; right: 12px; top: 10px; bottom: auto; width: auto; }
+body.compact .battle .meter { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; }
+body.compact .battle .meter .lbl { font-size: 15px; white-space: nowrap; }
+body.compact .battle .meter .bar { flex: 1 1 auto; min-width: 28px; }
+body.compact .battle .meter .val { font-size: 17px; flex: none; }
+body.compact .battle .ehud .meter .lbl, body.compact .battle .mcr { display: none; }
+body.compact .battle .pips { gap: 2px; flex: none; }
+body.compact .battle .pips .ic { width: 18px; height: 18px; }
 body.compact .battle .menu { left: 10px; right: 10px; bottom: 10px; height: 176px; padding: 12px; gap: 12px; }
 body.compact .battle .moves { grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 auto; min-width: 0; gap: 10px; }
 body.compact .battle .items { width: 186px; gap: 10px; }
