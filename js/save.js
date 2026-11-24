@@ -15,9 +15,9 @@ function newGameState() {
     world: 1,                 // העולם הנוכחי
     unlockedWorlds: 1,        // כמה עולמות נפתחו
     level: 1, xp: 0,
-    hp: 20,                   // חיים נוכחיים (המקסימום מחושב מהרמה ומהאביזרים)
+    hp: CFG.mai.hpBase,       // חיים נוכחיים (המקסימום מחושב מהרמה ומהאביזרים)
     cigs: 0,                  // 🚬
-    rugelach: 3,
+    rugelach: CFG.rugelach.perTrip,
     moves: ['pretzel', 'cuddle'],        // ערכת הפתיחה: בייגלה + התכרבלות
     movesUnlocked: ['pretzel', 'cuddle'],
     accessories: [], accessoriesOwned: [],
@@ -104,28 +104,27 @@ function formatDate(ms) {
 // =====================================================================
 // חישובים מהשמירה (לפי "התקדמות וכלכלה v1")
 // =====================================================================
-const LEVEL_XP = [0, 0, 30, 70, 120, 180, 250, 330, 420, 520, 630];   // ניסיון מצטבר לכל רמה (אינדקס = רמה)
+const LEVEL_XP = CFG.levels.xp;   // ניסיון מצטבר לכל רמה (אינדקס = רמה) – ב-config.js
 const MOVE_NAMES = {
   pretzel: 'בייגלה', cuddle: 'התכרבלות בסווטשירט', seeds: 'מטר גרעינים', glasses: 'משקפיים על העיניים',
   choc_bite: 'ביס שוקולד', cracker: 'קרקר שובר', salt_wave: 'גל מלח', choc_syrup: 'סירופ שוקולד',
   chili: 'רוטב צ׳ילי', pancake: 'פנקייק', tabasco: 'טבסקו', chili_gross: 'צ׳ילי גרוס',
 };
-const MOVE_UNLOCKS = [   // מהלכים שנפתחים ברמות
-  { level: 2, move: 'seeds' }, { level: 3, move: 'choc_bite' }, { level: 4, move: 'salt_wave' },
-  { level: 5, move: 'choc_syrup' }, { level: 6, move: 'pancake' }, { level: 7, move: 'tabasco' },
-];
+const MOVE_UNLOCKS = Object.entries(CFG.levels.moves).map(([level, move]) => ({ level: +level, move }));   // מהלכים שנפתחים ברמות
 const ACCESSORY_NAMES = { pouch: 'פאוץ׳', slippers: 'נעלי בית פרוותיות', choc_bracelet: 'צמיד שוקולד', red_polish: 'לק אדום', salt_shaker: 'מלחייה', snack_bag: 'תיק נישנושים' };
 const LEGENDARY_NAMES = ['פופקורן', 'תפוצ׳יפס', 'אצבעות קינדר', 'צ׳יטוס', 'סופגניה בלי כלום'];
 
 const Stats = {
   levelFor(xp) { let l = 1; for (let i = 1; i < LEVEL_XP.length; i++) if (xp >= LEVEL_XP[i]) l = i; return l; },
-  // חיים מקסימליים: 20 + 4 לכל רמה, +4 חוט לליזי, +6 נעלי בית
+  // חיים מקסימליים: בסיס + לכל רמה, + חוט לליזי, + נעלי בית (המספרים ב-config.js)
   maxHp(st) {
-    return 20 + 4 * (st.level - 1) + (st.decor.includes('yarn') ? 4 : 0) + (st.accessories.includes('slippers') ? 6 : 0);
+    return CFG.mai.hpBase + CFG.mai.hpPerLevel * (st.level - 1) + (st.decor.includes('yarn') ? CFG.decor.yarn.hp : 0) +
+      (st.accessories.includes('slippers') ? CFG.accessories.slippers.hp : 0);
   },
-  // רוגלך לכל יציאה: 3, +1 מגש גדול, +1 מרמה 8, +1 תיק נישנושים
+  // רוגלך לכל יציאה: בסיס, + מגש גדול, + מהרמה של CFG.levels.rugelachLevel, + תיק נישנושים
   maxRoga(st) {
-    return 3 + (st.oven.includes('tray') ? 1 : 0) + (st.level >= 8 ? 1 : 0) + (st.accessories.includes('snack_bag') ? 1 : 0);
+    return CFG.rugelach.perTrip + (st.oven.includes('tray') ? CFG.oven.tray.rugelach : 0) + (st.level >= CFG.levels.rugelachLevel ? 1 : 0) +
+      (st.accessories.includes('snack_bag') ? CFG.accessories.snack_bag.rugelach : 0);
   },
   // מילוי (ליזי / מטבח)
   refill(st) { st.hp = this.maxHp(st); st.rugelach = Math.max(st.rugelach, this.maxRoga(st)); },

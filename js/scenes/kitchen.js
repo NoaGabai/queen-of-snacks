@@ -5,16 +5,16 @@
 // =====================================================================
 
 const KITCHEN_DECOR = {
-  yarn:    { he: 'חוט לליזי',  d: 'עוד 4 חיים מקסימליים' },
+  yarn:    { he: 'חוט לליזי',  d: `עוד <bdi>${CFG.decor.yarn.hp}</bdi> חיים מקסימליים` },
   speaker: { he: 'רמקול',      d: 'נגן שירים במטבח, עם השירים של נועה' },
-  lava:    { he: 'מנורת לבה',  d: 'מד הנישנושים מתחיל כל קרב ב־<bdi>20%</bdi>' },
-  fridge:  { he: 'מקרר מלא',   d: 'עוד סיגריה אחת מכל קרב' },
-  photos:  { he: 'קיר תמונות', d: 'עוד <bdi>10%</bdi> ניסיון, ותמונות אמיתיות על הקיר' },
+  lava:    { he: 'מנורת לבה',  d: `מד הנישנושים מתחיל כל קרב ב־<bdi>${CFG.decor.lava.snack}%</bdi>` },
+  fridge:  { he: 'מקרר מלא',   d: CFG.decor.fridge.cigs === 1 ? 'עוד סיגריה אחת מכל קרב' : `עוד <bdi>${CFG.decor.fridge.cigs}</bdi> סיגריות מכל קרב` },
+  photos:  { he: 'קיר תמונות', d: `עוד <bdi>${Math.round(CFG.decor.photos.xp * 100)}%</bdi> ניסיון, ותמונות אמיתיות על הקיר` },
   neon:    { he: 'שלט ניאון',  d: 'רק יופי: גביע לסוף, ו״נישנושיםםםם!״ בכל כניסה' },
 };
 const OVEN_UPGRADES = [
-  { id: 'choc', he: 'רוגלך עם שוקולד כפול', d: 'אכילה מרפאת <bdi>15</bdi>, זריקה מכה <bdi>12</bdi>', price: 40 },
-  { id: 'tray', he: 'מגש גדול', d: 'עוד רוגלך אחד לכל יציאה', price: 50 },
+  { id: 'choc', he: 'רוגלך עם שוקולד כפול', d: `אכילה מרפאת <bdi>${CFG.oven.choc.eat}</bdi>, זריקה מכה <bdi>${CFG.oven.choc.throw}</bdi>`, price: CFG.oven.choc.price },
+  { id: 'tray', he: 'מגש גדול', d: 'עוד רוגלך אחד לכל יציאה', price: CFG.oven.tray.price },
 ];
 const IRIT_TIPS = ['הבצל לא סובל מלוח. תביאי משהו מלוח.', 'החמוץ שונא מלוח. קחי איתך משהו מלוח.', 'החציל נשרף ממתוק, תאמיני לי.', 'הדג הנא לא אוהב חריף.', 'האבוקדו… רק מתוק יעזור.'];
 const FRIEND_KEYS = ['roni', 'hadar', 'shai', 'amber', 'noa'];
@@ -85,7 +85,7 @@ const KitchenScene = {
     const st = Save.state, L = ART.kitchen, t = [];
     for (const n in KITCHEN_DECOR) {
       const has = st.decor.includes(n);
-      t.push({ id: 'decor:' + n, box: L.decor[n].bbox, label: KITCHEN_DECOR[n].he, sub: has ? '' : `${icon('cig')}<bdi>${L.decor[n].price}</bdi>` });
+      t.push({ id: 'decor:' + n, box: L.decor[n].bbox, label: KITCHEN_DECOR[n].he, sub: has ? '' : `${icon('cig')}<bdi>${CFG.decor[n].price}</bdi>` });
     }
     if (st.decor.includes('photos')) L.photo_frames.forEach((b, i) => t.push({ id: 'photo:' + i, box: b, label: 'תמונה', sub: 'לחיצה פותחת' }));
     t.push({ id: 'irit', box: [this.IRIT.x - 12, this.IRIT.foot - 32, this.IRIT.x + 12, this.IRIT.foot], label: 'אמא', sub: 'טיפ ושדרוגי תנור' });
@@ -125,7 +125,7 @@ const KitchenScene = {
 
   // --- קנייה: "לקנות ב-20?" ← נצנוץ ← אמא: "תפסיקי לעשן!!!"
   buyDecor(n) {
-    const st = Save.state, D = KITCHEN_DECOR[n], price = ART.kitchen.decor[n].price, short = price - st.cigs;
+    const st = Save.state, D = KITCHEN_DECOR[n], price = CFG.decor[n].price, short = price - st.cigs;
     const scale = n === 'neon' ? 2 : n === 'fridge' ? 1.6 : n === 'photos' ? 2.2 : 3;
     const bb = ART.kitchen.decor[n].bbox, cx = (bb[0] + bb[2]) / 2, cy = (bb[1] + bb[3]) / 2 + (n === 'neon' ? 0 : 0);
     Dialog(`<div class="top"><div class="pv"><div class="pvimg" style="background-image:url(assets/kitchen/${n}.png);background-position:${-cx * scale + 72}px ${-cy * scale + 52}px;background-size:${480 * scale}px ${270 * scale}px"></div></div>

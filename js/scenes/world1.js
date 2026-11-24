@@ -123,8 +123,8 @@ const World1Scene = {
     const st = Save.state, B = W1_BAGS[kind], b = this.Lay.bags[kind];
     st.bags[B.key] = true;
     if (kind === 'coin') {
-      gainCigs(10, t => this.sayMai(t, 1800)); this.w.sparkle([b.x - 10, b.foot - 20, b.x + 10, b.foot]);
-      Game.say(`שקית הפתעה: <bdi>10</bdi> ${icon('cig')}`); this.savePlace(); Save.saveNow(); return;
+      gainCigs(CFG.bags.coinCigs, t => this.sayMai(t, 1800)); this.w.sparkle([b.x - 10, b.foot - 20, b.x + 10, b.foot]);
+      Game.say(`שקית הפתעה: <bdi>${CFG.bags.coinCigs}</bdi> ${icon('cig')}`); this.savePlace(); Save.saveNow(); return;
     }
     if (kind === 'move' && !st.movesUnlocked.includes('glasses')) { st.movesUnlocked.push('glasses'); if (st.moves.length < 4) st.moves.push('glasses'); }
     if (kind === 'pouch' && !st.accessoriesOwned.includes('pouch')) { st.accessoriesOwned.push('pouch'); if (st.accessories.length < 2) st.accessories.push('pouch'); }

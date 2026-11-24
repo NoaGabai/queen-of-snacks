@@ -4,40 +4,25 @@
 // BattleScene.start(key, { onWin, onLose, onFlee }) ← בסוף הקרב נקראת אחת מהן, והיא מחליטה לאן חוזרים.
 // =====================================================================
 
-const FLAV = { salty: { he: 'מלוח', ic: 'salt' }, sweet: { he: 'מתוק' }, spicy: { he: 'חריף' }, plain: { he: 'בלי טעם' } };
+const FLAV = { salty: { he: 'מלוח', ic: 'salt' }, sweet: { he: 'מתוק', ic: 'choc' }, spicy: { he: 'חריף', ic: 'fire' }, plain: { he: 'בלי טעם' } };
 
-// 12 המהלכים ("מהלכים v1"). אייקון שעוד לא צויר ← כוכב (זמני)
-const MOVES = {
-  pretzel:     { flav: 'salty', cost: 0, pow: 4, ic: 'pretzel' },
-  cuddle:      { flav: 'plain', cost: 1, guard: true, ic: 'hoodie', d: 'המכה הבאה חצי נזק' },
-  seeds:       { flav: 'salty', cost: 2, pow: 9, ic: 'seeds' },
-  glasses:     { flav: 'plain', cost: 1, boost: true, ic: 'glasses', d: 'המהלך הבא חזק פי <bdi>1.5</bdi>' },
-  choc_bite:   { flav: 'sweet', cost: 0, pow: 3, heal: 2 },
-  cracker:     { flav: 'salty', cost: 2, pow: 6, pierce: true },
-  salt_wave:   { flav: 'salty', cost: 3, pow: 13 },
-  choc_syrup:  { flav: 'sweet', cost: 2, pow: 6, heal: 4 },
-  chili:       { flav: 'spicy', cost: 0, pow: 2, burn: 2, ic: 'fire' },
-  pancake:     { flav: 'sweet', cost: 3, pow: 0, heal: 12, d: 'מחזיר <bdi>12</bdi> חיים' },
-  tabasco:     { flav: 'spicy', cost: 2, pow: 5, burn: 4, ic: 'fire' },
-  chili_gross: { flav: 'spicy', cost: 3, pow: 8, burn: 6, ic: 'fire' },
-};
-// נישנושים אגדיים (כפתור הזהב). כרגע רק הפופקורן אפשרי (עולם 1)
+// המהלכים והאויבים (כולל כל המספרים) מוגדרים ב-js/config.js
+const MOVES = CFG.moves;
+const ENEMIES = CFG.enemies;
+// נישנושים אגדיים (כפתור הזהב). המספרים ב-CFG.legendary; האינדקס = הסדר ב-Save.state.legendary
+const LG = CFG.legendary;
 const LEGENDARY = [
-  { he: 'פופקורן', ic: 'popcorn', d: 'שלוש פגיעות מלוחות', run: async B => { for (let i = 0; i < 3 && B.S.en.cur > 0; i++) { const { d, weak } = B.dmgTo(5, 'salty', { noLevel: true }); await B.damageEnemy(d, weak, null, { big: true, quiet: i > 0 }); await wait(120); } } },
+  { he: 'פופקורן', ic: 'popcorn', d: 'שלוש פגיעות מלוחות',
+    run: async B => { for (let i = 0; i < LG.popcorn.hits && B.S.en.cur > 0; i++) { const { d, weak } = B.dmgTo(LG.popcorn.pow, 'salty', { noLevel: true }); await B.damageEnemy(d, weak, null, { big: true, quiet: i > 0 }); await wait(120); } } },
+  { he: 'תפוצ׳יפס', ic: 'chips', d: `<bdi>${LG.chips.pow}</bdi> נזק מלוח, דרך הגנה`,
+    run: async B => { const { d, weak } = B.dmgTo(LG.chips.pow, 'salty', { noLevel: true, pierce: true, noBoost: true }); await B.damageEnemy(d, weak, 'התפוצ׳יפס', { big: true, pierce: true }); } },
 ];
-// האויבים של עולם 1 ("אויבים v1")
-const ENEMIES = {
-  tomato: { he: 'עגבניית שרי', g: 'f', hp: 14, weak: 'salty', spr: 'world1/veg_tomato', bg: 'world1/bg_garden', xp: 10, cigs: 3,
-            pattern: [{ t: 'atk', v: 3 }, { t: 'atk', v: 3 }, { t: 'charge' }, { t: 'atk', v: 6 }] },
-  carrot: { he: 'גזר', g: 'm', hp: 18, weak: 'salty', spr: 'world1/veg_carrot', bg: 'world1/bg_garden', xp: 10, cigs: 3,
-            pattern: [{ t: 'def' }, { t: 'atk', v: 4 }, { t: 'atk', v: 4 }] },
-  onion:  { he: 'הבצל הירוק הגדול', hp: 80, weak: 'salty', mult: 2, boss: true, spr: 'world1/boss_onion_1', spr2: 'world1/boss_onion_2', bg: 'world1/bg_plaza',
-            xp: 40, cigs: 15, legendary: 0, phase2: 'דמעות', phase2Line: 'דמעות!', world: 'גינת הבצל הירוק',
-            pattern: [{ t: 'atk', v: 4 }, { t: 'atk', v: 4 }, { t: 'charge' }, { t: 'atk', v: 8 }],
-            pattern2: [{ t: 'atk', v: 5 }, { t: 'atk', v: 5 }, { t: 'charge' }, { t: 'atk', v: 10 }] },
+// כל התמונות של הקרב (לפי האויבים בהגדרות)
+const BATTLE_IMAGES = () => {
+  const l = new Set(['irit_tray']);
+  for (const k in ENEMIES) { const E = ENEMIES[k]; [E.spr, E.spr2, E.bg].forEach(n => n && l.add(n)); }
+  return [...l];
 };
-const BATTLE_IMAGES = () => ['world1/veg_tomato', 'world1/veg_carrot', 'world1/boss_onion_1', 'world1/boss_onion_2',
-  'world1/bg_garden', 'world1/bg_plaza', 'irit_tray'];
 
 const INTENT_IC = { atk: 'sword', def: 'shield', charge: 'charge', burn: 'fire', heal: 'leaf' };
 const BMAI = { x: 100, foot: 198 }, BENE = { x: 360, foot: 124 };
@@ -73,9 +58,9 @@ const BattleScene = {
 
   enter() {
     const st = Save.state, E = ENEMIES[this.key];
-    const crunch0 = (st.level >= 9 ? 3 : 2) + (st.accessories.includes('pouch') ? 1 : 0);
+    const C = CFG.crunch, crunch0 = C.start + (st.level >= CFG.levels.crunchLevel ? 1 : 0) + (st.accessories.includes('pouch') ? CFG.accessories.pouch.crunch : 0);
     this.S = {
-      mai: { hp: Math.min(st.hp, Stats.maxHp(st)), max: Stats.maxHp(st), crunch: Math.min(5, crunch0), snack: st.decor.includes('lava') ? 20 : 0,
+      mai: { hp: Math.min(st.hp, Stats.maxHp(st)), max: Stats.maxHp(st), crunch: Math.min(C.max, crunch0), snack: st.decor.includes('lava') ? CFG.decor.lava.snack : 0,
              guard: false, boost: false, burn: 0, spr: 'mai3_idle', roga: st.rugelach },
       en: { ...E, cur: E.hp, step: 0, alive: true, phase: 1, burn: 0, sprNow: E.spr },
       busy: false, over: false, pop: false, iritUsed: false, arrow: null,
@@ -84,8 +69,8 @@ const BattleScene = {
     this.build();
     this.dy = 0; Screen.onFit = () => { this.layoutShift(); this.render(); };
     const en = this.S.en;
-    if (en.boss) { this.msg(`${en.he} מחכה בכיכר. מבוס לא בורחים!`); setTimeout(() => this.say('מה יש בזה?', 'mai', 1800), 450); }
-    else this.msg(`${en.he} חוסמת את הדרך!`);
+    if (en.boss) { this.msg(`${en.he} ${en.wait || 'מחכה'}. מבוס לא בורחים!`); setTimeout(() => this.say('מה יש בזה?', 'mai', 1800), 450); }
+    else this.msg(`${en.he} ${this.v('חוסם', 'חוסמת')} את הדרך!`);
     this.layoutShift(); this.render();
     if (!en.boss) this.tutStart();
   },
@@ -168,25 +153,24 @@ const BattleScene = {
     slots.forEach((id, i) => id && L.on('mv' + i, () => this.playerMove(id)));
     L.q('.items').innerHTML = act({ k: 'roga', ic: 'rugelach', title: 'רוגלך', desc: ' ' }) + act({ k: 'flee', ic: 'flee', title: 'בריחה', desc: 'תמיד מצליחה' });
     L.on('roga', () => this.togglePop()).on('flee', () => this.flee());
-    const choc = st.oven.includes('choc');
-    L.q('.rogaPop').innerHTML = act({ k: 'eat', ic: 'rugelach', flav: 'sweet', title: 'לאכול', desc: `מחזיר <bdi>${choc ? 15 : 10}</bdi> חיים` }) +
-                                 act({ k: 'throw', ic: 'rugelach', flav: 'sweet', title: 'לזרוק', desc: `<bdi>${choc ? 12 : 8}</bdi> נזק` });
+    const choc = st.oven.includes('choc'), RG = CFG.rugelach, OV = CFG.oven.choc;
+    L.q('.rogaPop').innerHTML = act({ k: 'eat', ic: 'rugelach', flav: 'sweet', title: 'לאכול', desc: `מחזיר <bdi>${choc ? OV.eat : RG.eat}</bdi> חיים` }) +
+                                 act({ k: 'throw', ic: 'rugelach', flav: 'sweet', title: 'לזרוק', desc: `<bdi>${choc ? OV.throw : RG.throw}</bdi> נזק` });
     L.on('eat', () => this.eat()).on('throw', () => this.throwR());
     // כפתור הזהב: הנישנוש האגדי (רק כשיש כבר אחד ביד)
-    const leg = st.legendary.length ? LEGENDARY[st.legendary[0]] : null;
-    if (leg) {
-      L.q('.specialWrap').innerHTML = act({ k: 'special', ic: leg.ic, title: leg.he, desc: leg.d, cls: 'special', side: '<span class="tag adv">מוכן</span>' });
-      L.on('special', () => this.special(leg));
-    }
+    // (כשיש כמה – כפתור לכל אחד, והיא בוחרת. העיצוב לבחירה עוד פתוח בשיחת העיצוב)
+    const legs = [...st.legendary].sort((a, b) => b - a).map(i => [i, LEGENDARY[i]]).filter(([, l]) => l);
+    L.q('.specialWrap').innerHTML = legs.map(([i, l]) => act({ k: 'special' + i, ic: l.ic, title: l.he, desc: l.d, cls: 'special', side: '<span class="tag adv">מוכן</span>' })).join('');
+    for (const [i, l] of legs) L.on('special' + i, () => this.special(l));
     this.blinkT = 0;
   },
 
   moveDesc(m) {
     if (m.d) return m.d;
     const parts = [];
-    if (m.pow) parts.push(`<bdi>${m.pow + Math.floor(Save.state.level / 2)}</bdi> נזק`);
+    if (m.pow) parts.push(`<bdi>${m.pow + Math.floor(Save.state.level / CFG.mai.levelBonusDiv)}</bdi> נזק`);
     if (m.heal) parts.push(`מרפא <bdi>${m.heal}</bdi>`);
-    if (m.burn) parts.push(`שורף <bdi>${m.burn}</bdi>`);
+    if (m.burn) parts.push(`שורף <bdi>${this.burnOf(m.burn)}</bdi>`);
     if (m.pierce) parts.push('שובר הגנה');
     parts.push(FLAV[m.flav].he);
     return parts.join(' · ');
@@ -195,7 +179,7 @@ const BattleScene = {
   msg(html) { this.L.q('.msg').innerHTML = `<span>${html}</span>`; },
   eh() { const im = Assets.get(this.S.en.sprNow); return im ? im.height : 40; },
   say(text, who, ms = 1300) {
-    const b = document.createElement('div'); b.className = 'say bt'; b.textContent = text;
+    const b = document.createElement('div'); b.className = 'say bt'; b.dir = 'auto'; b.textContent = text;
     const p = who === 'mai' ? (Screen.compact ? { x: BMAI.x + 66, y: BMAI.foot - 62 } : { x: BMAI.x, y: BMAI.foot - 108 }) : who === 'irit' ? { x: 46, y: BMAI.foot - 104 }
       : this.eh() > 90 ? { x: BENE.x - 40, y: BENE.foot - this.eh() + 30 } : { x: BENE.x, y: BENE.foot - this.eh() - 10 };
     b.style.left = ux(p.x) + 'px'; b.style.top = this.wy(p.y); this.L.q('.battle').appendChild(b); if (ms) setTimeout(() => b.remove(), ms);
@@ -213,7 +197,7 @@ const BattleScene = {
     this.setBar('.ebar', E.cur, E.hp); q('.ehp').textContent = `${Math.max(0, E.cur)}/${E.hp}`;
     this.setBar('.mbar', M.hp, M.max); q('.mhp').textContent = `${Math.max(0, M.hp)}/${M.max}`;
     q('.mhud').classList.toggle('low', M.hp / M.max < .3 && M.hp > 0);
-    q('.pips').innerHTML = [0, 1, 2, 3, 4].map(i => icon(i < M.crunch ? 'crunch' : 'crunchOff')).join(''); q('.mcr').textContent = `${M.crunch}/5`;
+    q('.pips').innerHTML = [...Array(CFG.crunch.max).keys()].map(i => icon(i < M.crunch ? 'crunch' : 'crunchOff')).join(''); q('.mcr').textContent = `${M.crunch}/${CFG.crunch.max}`;
     const sn = Math.min(100, Math.round(M.snack)); this.setBar('.sbar', sn, 100, false); q('.msn').textContent = `${sn}%`;
     // בועת הכוונה
     const it = this.intentOf(), ib = q('.intent'), danger = it.t === 'charge' || it.t === 'burn' || (it.t === 'atk' && it.v >= 6);
@@ -234,7 +218,7 @@ const BattleScene = {
     const fb = L.q('[data-k="flee"]'); fb.disabled = locked || !!E.boss; fb.querySelector('.d').textContent = E.boss ? 'לא בקרב בוס' : 'תמיד מצליחה';
     const pop = q('.rogaPop'); pop.hidden = !(S.pop && !locked);
     if (!pop.hidden) { const r = rb.getBoundingClientRect(); pop.style.left = (Screen.toUI(r.right, 0).x - 280) + 'px'; }
-    const sp = L.q('[data-k="special"]'); if (sp) { sp.hidden = !(M.snack >= 100 && !S.over); sp.disabled = locked; }
+    L.el.querySelectorAll('.special').forEach(sp => { sp.hidden = !(M.snack >= 100 && !S.over); sp.disabled = locked; });
     L.focus.refresh(S.pop && !locked ? 'eat' : undefined);
   },
 
@@ -242,14 +226,19 @@ const BattleScene = {
   // נזק = כוח + רמה÷2 ← ×2 חולשת בוס / ×1.5 חולשה של ירק ← ×1.5 משקפיים ← −50% אם האויב בהגנה
   dmgTo(pow, flav, o = {}) {
     const st = Save.state, S = this.S;
-    let d = pow + (o.noLevel ? 0 : Math.floor(st.level / 2)) + (flav === 'salty' && st.accessories.includes('salt_shaker') ? 2 : 0);
+    const X = CFG.mult;
+    let d = pow + (o.noLevel ? 0 : Math.floor(st.level / CFG.mai.levelBonusDiv)) + (flav === 'salty' && st.accessories.includes('salt_shaker') ? CFG.accessories.salt_shaker.salty : 0);
     const weak = flav === S.en.weak;
-    if (weak) d = Math.floor(d * (S.en.mult || 1.5));
-    if (S.mai.boost && !o.noBoost) d = Math.floor(d * 1.5);
-    if (this.intentOf().t === 'def' && !o.pierce) d = Math.floor(d * .5);
+    if (weak) d = Math.floor(d * this.weakMult());
+    if (S.mai.boost && !o.noBoost) d = Math.floor(d * X.boost);
+    if (this.intentOf().t === 'def' && !o.pierce) d = Math.floor(d * X.defense);
     return { d, weak };
   },
-  snackGain(n) { this.S.mai.snack = Math.min(100, this.S.mai.snack + n * (Save.state.level >= 10 ? 1.25 : 1)); },
+  // מילה בזכר / בנקבה לפי האויב (g: 'm' בהגדרות)
+  v(m, f) { return this.S.en.g === 'm' ? m : f; },
+  weakMult() { const E = this.S.en; return E.mult || (E.boss ? CFG.mult.weakBoss : CFG.mult.weakVeg); },
+  burnOf(b) { return b + (Save.state.accessories.includes('red_polish') ? CFG.accessories.red_polish.burn : 0); },
+  snackGain(n) { const LV = CFG.levels; this.S.mai.snack = Math.min(100, this.S.mai.snack + n * (Save.state.level >= LV.snackLevel ? LV.snackLevelMult : 1)); },
 
   async playerMove(id) {
     const S = this.S, M = S.mai, m = MOVES[id];
@@ -264,10 +253,10 @@ const BattleScene = {
         const { d, weak } = this.dmgTo(m.pow, m.flav, { pierce: m.pierce });
         this.endBoost();
         await this.damageEnemy(d, weak, name);
-        if (m.burn && S.en.cur > 0) { S.en.burn = m.burn; this.msg(`${S.en.he} עולה באש!`); await wait(400); }
+        if (m.burn && S.en.cur > 0) { S.en.burn = this.burnOf(m.burn); this.msg(`${S.en.he} עולה באש!`); await wait(400); }
       }
       if (m.heal) {
-        const h = Math.min(m.heal + (Save.state.accessories.includes('choc_bracelet') && m.flav === 'sweet' ? 2 : 0), M.max - M.hp);
+        const h = Math.min(m.heal + (Save.state.accessories.includes('choc_bracelet') && m.flav === 'sweet' ? CFG.accessories.choc_bracelet.heal : 0), M.max - M.hp);
         M.hp += h; if (!m.pow) { this.msg(`${name}! מאי מרגישה טוב יותר.`); this.endBoost(); }
         await this.hit('mai', h, { heal: true }); this.render(); await wait(300);
       }
@@ -278,18 +267,18 @@ const BattleScene = {
   endBoost() { const M = this.S.mai; if (M.boost) { M.boost = false; if (M.spr === 'mai3_glasses') M.spr = 'mai3_idle'; } },
 
   async damageEnemy(d, weak, what, o = {}) {
-    const E = this.S.en; E.cur -= d; this.snackGain(weak ? 15 : 10);
-    const def = this.intentOf().t === 'def';
-    if (!o.quiet) this.msg(weak ? `סופר יעיל! ${what || 'הפגיעה'} פוגע${what ? '' : 'ת'} ב${E.he}.` : def ? `${E.he} מתגוננת. הנזק נחתך בחצי.` : `${what} פוגע ב${E.he}.`);
+    const E = this.S.en; E.cur -= d; this.snackGain(weak ? CFG.snack.weakHit : CFG.snack.hit);
+    const def = this.intentOf().t === 'def' && !o.pierce;
+    if (!o.quiet) this.msg(weak ? `סופר יעיל! ${what || 'הפגיעה'} פוגע${what ? '' : 'ת'} ב${E.he}.` : def ? `${E.he} ${this.v('מתגונן', 'מתגוננת')}. הנזק נחתך בחצי.` : `${what || 'הפגיעה'} פוגע${what ? '' : 'ת'} ב${E.he}.`);
     await this.hit('en', d, { weak, big: o.big }); this.render(); await wait(300); await this.maybePhaseTwo();
   },
   async maybePhaseTwo() {
     const E = this.S.en, F = this.S.fx;
     if (!E.boss || E.phase === 2 || E.cur <= 0 || E.cur > E.hp / 2) return;
-    E.phase = 2; this.msg(`${E.he} מתחיל לבכות… ומתעצבן!`); F.shake = 700; F.amp = 4;
+    E.phase = 2; this.msg(`${E.he} ${E.p2msg}`); F.shake = 700; F.amp = 4;
     for (let i = 0; i < 4; i++) { F.flash = { who: 'en', mode: '#ffffff' }; await wait(70); F.flash = null; await wait(70); }
-    E.sprNow = E.spr2; E.pattern = E.pattern2; E.step = 0; this.burst(BENE.x, BENE.foot - 60, '#8FD0F2', 600); this.render();
-    this.say(E.phase2Line, 'en', 1400); await wait(1000); this.msg(`שלב 2, "${E.phase2}": המכות חזקות יותר.`); await wait(700);
+    E.sprNow = E.spr2; E.pattern = E.pattern2; E.step = 0; this.burst(BENE.x, BENE.foot - 60, E.p2col, 600); this.render();
+    this.say(E.p2say, 'en', 1400); await wait(1000); this.msg(`שלב 2, "${E.p2name}": המכות חזקות יותר.`); await wait(700);
   },
 
   async enemyTurn() {
@@ -297,25 +286,28 @@ const BattleScene = {
     S.arrow = 'en'; this.render(); await wait(450);
     // שריפה על האויב: נזק בתחילת התור שלו (החולשה חלה גם עליה)
     if (E.burn) {
-      let d = E.burn; if (E.weak === 'spicy') d = Math.floor(d * (E.mult || 1.5)); E.burn = 0;
-      E.cur -= d; this.msg(`${E.he} נשרפת.`); await this.hit('en', d, {}); this.render(); await wait(300);
+      let d = E.burn; if (E.weak === 'spicy') d = Math.floor(d * this.weakMult()); E.burn = 0;
+      E.cur -= d; this.msg(`${E.he} ${this.v('נשרף', 'נשרפת')}.`); await this.hit('en', d, {}); this.render(); await wait(300);
       if (await this.checkEnd()) return;
     }
-    const it = this.intentOf();
+    const it = this.intentOf(), X = CFG.mult;
     if (it.t === 'atk' || it.t === 'burn') {
-      this.msg(`${E.he} תוקפת!`); await this.lunge('en');
-      let d = it.v; if (M.guard) d = Math.ceil(d * .5);
-      M.hp -= d; this.snackGain(10); this.say('איכ לא', 'mai', 900); await this.hit('mai', d, { big: d >= 6 });
-      if (it.t === 'burn') M.burn = Math.ceil(it.v / 2);
-    } else if (it.t === 'def') { this.msg(`${E.he} מתכנסת מאחורי מגן.`); this.burst(BENE.x, BENE.foot - 24, '#8FB8E8', 300); await wait(550); }
-    else if (it.t === 'charge') { this.msg(`${E.he} אוספת כוח. המכה הבאה תהיה חזקה.`); for (let i = 0; i < 3; i++) { S.fx.flash = { who: 'en', mode: '#ff3b3b' }; await wait(80); S.fx.flash = null; await wait(80); } }
-    else if (it.t === 'heal') { const h = Math.min(it.v, E.hp - E.cur); E.cur += h; this.msg(`${E.he} אוכלת סופר-פוד.`); await this.hit('en', h, { heal: true }); }
+      this.msg(it.t === 'burn' ? `${E.he} ${this.v('מצית', 'מציתה')}! מאי נפגעת ונשרפת.` : `${E.he} ${this.v('תוקף', 'תוקפת')}!`); await this.lunge('en');
+      let d = it.v; if (M.guard) d = Math.ceil(d * X.guard);
+      M.hp -= d; this.snackGain(CFG.snack.hurt); this.say('איכ לא', 'mai', 900);
+      if (it.t === 'burn') this.burst(BMAI.x, BMAI.foot - 50, '#E2231A', 300);
+      await this.hit('mai', d, { big: d >= 6 });
+      // מצית: השריפה נדלקת עכשיו, והנזק שלה בתחילת התור של מאי (הסווטשירט חוצה גם אותה)
+      if (it.t === 'burn') { const b = it.burn != null ? it.burn : Math.ceil(it.v / 2); M.burn = M.guard ? Math.ceil(b * X.guard) : b; }
+    } else if (it.t === 'def') { this.msg(`${E.he} ${this.v('מתכנס', 'מתכנסת')} מאחורי מגן.`); this.burst(BENE.x, BENE.foot - 24, '#8FB8E8', 300); await wait(550); }
+    else if (it.t === 'charge') { this.msg(`${E.he} ${this.v('אוסף', 'אוספת')} כוח. המכה הבאה תהיה חזקה.`); for (let i = 0; i < 3; i++) { S.fx.flash = { who: 'en', mode: '#ff3b3b' }; await wait(80); S.fx.flash = null; await wait(80); } }
+    else if (it.t === 'heal') { const h = Math.min(it.v, E.hp - E.cur); E.cur += h; this.msg(`${E.he} ${this.v('אוכל', 'אוכלת')} סופר-פוד.`); await this.hit('en', h, { heal: true }); }
     E.step++; M.guard = false; if (M.spr === 'mai3_cuddle') M.spr = M.boost ? 'mai3_glasses' : 'mai3_idle';
-    // שריפה על מאי (עולמות מאוחרים יותר)
-    if (M.burn && M.hp > 0) { const d = M.burn; M.burn = 0; M.hp -= d; await this.hit('mai', d, {}); }
-    M.crunch = Math.min(5, M.crunch + 1); S.arrow = null; this.render();
+    // שריפה על מאי: בתחילת התור שלה
+    if (M.burn && M.hp > 0) { const d = M.burn; M.burn = 0; this.render(); await wait(350); M.hp -= d; this.msg(`מאי נשרפת: <bdi>${d}</bdi> נזק.`); await this.hit('mai', d, {}); await wait(250); }
+    M.crunch = Math.min(CFG.crunch.max, M.crunch + CFG.crunch.perTurn); S.arrow = null; this.render();
     if (await this.checkEnd()) return;
-    if (E.boss && !S.iritUsed && M.hp / M.max < .3) await this.iritHelps();
+    if (E.boss && !S.iritUsed && M.hp / M.max < CFG.rugelach.iritBelow) await this.iritHelps();
     S.busy = false; this.msg('מה מאי עושה?'); this.render(); this.tutCharge();
   },
 
@@ -324,20 +316,20 @@ const BattleScene = {
     const S = this.S, M = S.mai; S.iritUsed = true; S.fx.irit = { x: -40 };
     for (let x = -40; x <= 34; x += 6) { S.fx.irit.x = x; await wait(16); }
     this.say('קחי רוגלך, מאמי!', 'irit', 1600); this.msg('אמא הגיעה עם רוגלך!'); await wait(700);
-    const h = Math.min(10, M.max - M.hp); M.hp += h; this.burst(BMAI.x, BMAI.foot - 50, '#E0A45A', 400); await this.hit('mai', h, { heal: true }); this.render(); await wait(900);
+    const h = Math.min(CFG.rugelach.iritHeal, M.max - M.hp); M.hp += h; this.burst(BMAI.x, BMAI.foot - 50, '#E0A45A', 400); await this.hit('mai', h, { heal: true }); this.render(); await wait(900);
     for (let x = 34; x >= -50; x -= 8) { S.fx.irit.x = x; await wait(16); } S.fx.irit = null;
   },
 
   togglePop() { const S = this.S; if (S.busy || S.over) return; this.clearTips(); S.pop = !S.pop; this.render(); },
   async eat() {
     const S = this.S, M = S.mai; if (S.busy || M.roga <= 0) return;
-    S.busy = true; S.pop = false; M.roga--; const h = Math.min(Save.state.oven.includes('choc') ? 15 : 10, M.max - M.hp); M.hp += h;
+    S.busy = true; S.pop = false; M.roga--; const h = Math.min(Save.state.oven.includes('choc') ? CFG.oven.choc.eat : CFG.rugelach.eat, M.max - M.hp); M.hp += h;
     this.msg('מאי אוכלת רוגלך של אמא.'); await this.hit('mai', h, { heal: true }); this.render(); await wait(500); await this.enemyTurn();
   },
   async throwR() {
     const S = this.S, M = S.mai; if (S.busy || M.roga <= 0) return;
     S.busy = true; S.pop = false; M.roga--; this.render(); this.msg('מאי זורקת רוגלך!'); await this.lunge('mai');
-    let d = Save.state.oven.includes('choc') ? 12 : 8; if (this.intentOf().t === 'def') d = Math.floor(d / 2);
+    let d = Save.state.oven.includes('choc') ? CFG.oven.choc.throw : CFG.rugelach.throw; if (this.intentOf().t === 'def') d = Math.floor(d * CFG.mult.defense);
     await this.damageEnemy(d, false, 'הרוגלך'); if (await this.checkEnd()) return; await this.enemyTurn();
   },
   async special(leg) {
@@ -357,7 +349,7 @@ const BattleScene = {
   async checkEnd() {
     const S = this.S, E = S.en, M = S.mai;
     if (E.cur <= 0 && E.alive) {
-      E.alive = false; S.over = true; this.render(); this.startDissolve(); this.msg(`${E.he} התפוררה.`); await wait(900);
+      E.alive = false; S.over = true; this.render(); this.startDissolve(); this.msg(`${E.he} ${this.v('התפורר', 'התפוררה')}.`); await wait(900);
       S.fx.bounce = 700; this.say(E.boss ? 'תבכי, זה לא מרגש אותי' : 'מה יש בזה?', 'mai', 2400); await wait(1400);
       this.win(); return true;
     }
@@ -373,7 +365,7 @@ const BattleScene = {
   // ניצחון: ניסיון וסיגריות (+10% קיר תמונות, +1 מקרר), עלייה ברמה, נישנוש אגדי מבוס
   win() {
     const st = Save.state, E = this.S.en;
-    const xp = Math.round(E.xp * (st.decor.includes('photos') ? 1.1 : 1)), cigs = E.cigs + (st.decor.includes('fridge') ? 1 : 0);
+    const xp = Math.round(E.xp * (1 + (st.decor.includes('photos') ? CFG.decor.photos.xp : 0))), cigs = E.cigs + (st.decor.includes('fridge') ? CFG.decor.fridge.cigs : 0);
     st.hp = Math.max(1, this.S.mai.hp); st.rugelach = this.S.mai.roga;
     const up = gainXp(xp);
     gainCigs(cigs, t => setTimeout(() => { if (Game.scene === this) this.say(t, 'mai', 1600); }, 2600));   // אחרי המשפט של הניצחון
@@ -382,8 +374,9 @@ const BattleScene = {
     if (E.boss) {
       const leg = LEGENDARY[E.legendary];
       rewards = `<span class="legend">${icon(leg.ic)}${leg.he}</span>` + rewards;
-      this.result('ניצחון על הבוס!', `${E.world} שוחררה. הנישנוש האגדי הראשון שלך:`, rewards, 'חזרה למטבח', () => this.finish('win'));
-    } else this.result('ניצחון', `${E.he} כבר לא חוסמת את הדרך.`, rewards, 'ממשיכים', () => this.finish('win'));
+      const nth = ['הראשון', 'השני', 'השלישי', 'הרביעי', 'החמישי'][st.legendary.length] || '';
+      this.result('ניצחון על הבוס!', `${WORLD_NAMES[E.world]} שוחררה. הנישנוש האגדי ${nth} שלך:`, rewards, 'חזרה למטבח', () => this.finish('win'));
+    } else this.result('ניצחון', `${E.he} כבר לא ${this.v('חוסם', 'חוסמת')} את הדרך.`, rewards, 'ממשיכים', () => this.finish('win'));
   },
   result(title, text, rewards, btn, fn) {
     const r = this.L.q('.result');

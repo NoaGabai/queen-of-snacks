@@ -263,7 +263,8 @@ body.compact .phone .foot { margin-top: 6px; }
 .battle .act.empty .t { color: var(--dim); font-weight: 400; }
 .battle .rogaPop { position: absolute; width: 280px; bottom: 208px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .battle .rogaPop .act { min-height: 68px; }
-.battle .special { position: absolute; left: 24px; bottom: 216px; width: 340px; min-height: 76px; border-color: var(--gold); }
+.battle .specialWrap { position: absolute; left: 24px; bottom: 216px; width: 340px; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none; }
+.battle .special { position: relative; width: 100%; min-height: 76px; border-color: var(--gold); pointer-events: auto; }
 .battle .special .tile { border-color: var(--gold); background: #2E2A18; }
 .battle .result { left: 50%; top: 200px; width: 480px; transform: translateX(-50%); padding: 24px 28px; display: flex; flex-direction: column; align-items: stretch; gap: 14px; text-align: center; }
 .battle .result h2 { margin: 0; font-size: 26px; font-weight: 700; color: var(--gold); }
@@ -293,7 +294,7 @@ body.compact .battle .menu .act .cost { min-height: 0; padding: 1px 3px; backgro
 body.compact .battle .menu .act .cost .ic { width: 18px; height: 18px; }
 body.compact .battle .menu .act .side .free { display: none; }
 body.compact .battle .rogaPop { bottom: 196px; }
-body.compact .battle .special { left: auto; right: 12px; bottom: 198px; width: 380px; }
+body.compact .battle .specialWrap { left: auto; right: 12px; bottom: 198px; width: 380px; }
 /* בועות הדרכה בקרב הראשון: כמו בועת דיבור, עם מסגרת זהב */
 .battle .say.tut { z-index: 3; border-color: var(--gold); background: #FFF6DE; box-shadow: 0 0 0 3px rgba(226, 193, 120, .35), var(--shadow); }
 .battle .say.tut:after { border-top-color: var(--gold); }
