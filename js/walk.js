@@ -112,6 +112,7 @@ class Walker {
       if (t && !t.passive) { const [ax, ay] = this.approach(t); this.walkTo(ax, ay, () => this.use(t)); }
       else if (this.o.walkable(p.x, p.y)) this.walkTo(p.x, p.y);
       else if (t && t.onBlocked) t.onBlocked();
+      else if (this.o.blocked) this.o.blocked(p);                                       // המסך מחליט (למשל מי מלח בעולם 2)
       else if (p.x >= 0 && p.y >= 0 && p.x <= W && p.y <= H) this.walkTo(p.x, p.y);   // קיר/קצה: הולכת הכי קרוב שאפשר
     }
     if (Input.was('a')) { const t = this.nearest(); if (t) this.use(t); }

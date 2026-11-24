@@ -15,8 +15,8 @@ function loadFonts() {
 }
 
 // המסכים שאפשר להיות בהם כשהמשחק נשמר
-const SCENES = { kitchen: KitchenScene, world1: World1Scene };
-const WORLD_SCENES = { 1: World1Scene };     // עולמות 2–5 יתווספו בהמשך
+const SCENES = { kitchen: KitchenScene, world1: World1Scene, world2: World2Scene };
+const WORLD_SCENES = { 1: World1Scene, 2: World2Scene };     // עולמות 3–5 יתווספו בהמשך
 function sceneFor(st) { return SCENES[st.place && st.place.scene] || KitchenScene; }
 
 // התמונות האמיתיות לקיר לא נמצאות ב-GitHub (פרטיות): טוענים אותן רק אם הן קיימות במחשב
@@ -30,7 +30,7 @@ Promise.all([
     ...TITLE_IMAGES,
     'mai3_idle', 'mai3_glasses', 'mai3_cuddle',
     'lizzy_sit', 'lizzy_sleep', 'lizzy_purr',
-    ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(), ...BATTLE_IMAGES(),
+    ...KITCHEN_IMAGES(), ...WORLD1_IMAGES(), ...WORLD2_IMAGES(), ...BATTLE_IMAGES(),
   ]),
 ]).then(() => {
   document.getElementById('loading').remove();

@@ -38,6 +38,7 @@ const World1Scene = {
       click: t => this.click(t),
     });
     this.L = Layer(walkLayerHTML('<div class="panel secrets"></div><div class="panel where"></div>'), { screen: true }).mount();
+    this._sec = null;                                   // שכבה חדשה: מציירים את מונה הסודות מחדש
     wirePhoneButton(this.L);
     this.clouds = [{ x: -120, y: 40, s: 1, v: 6 }, { x: 180, y: 150, s: 1.3, v: 5 }, { x: 420, y: 10, s: .9, v: 7 }];
     this.fade = 0; this.fadeTo = null; this.lock = World1Scene.returnLock ? performance.now() + 2500 : 0; this.heardAt = 0;
